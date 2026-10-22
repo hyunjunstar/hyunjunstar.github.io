@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta property="og:title" content="팡팡 구슬 던전 · 김현준 포트폴리오">
+<meta property="og:description" content="AI 도구로 1인 기획·개발·배포한 모바일 웹 게임 팡팡 구슬 던전의 기획, 개발, 트러블슈팅 기록.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://hyunjunstar.github.io/portfolio2/assets/battle.jpg">
+<style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head>
+<body>
+<title>팡팡 구슬 던전 · 김현준 포트폴리오</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="AI 도구로 1인 기획·개발·배포한 모바일 웹 게임 팡팡 구슬 던전의 기획, 개발, 트러블슈팅 기록.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout concept: a road read top to bottom. Night asphalt ground, thermoplastic white
+   for structure, lane yellow for the one thing that moves (progress, the active state).
+   Sections are "stations" stencilled on the road; a lane line on the left fills as you scroll. */
+:root {
+  color-scheme: dark;
+  --asphalt: #14161a;        /* page ground: blue-biased charcoal, like wet night asphalt */
+  --asphalt-2: #1b1e23;      /* raised surfaces (cards, code) */
+  --asphalt-3: #252930;      /* borders, hairlines on surfaces */
+  --paint: #ecebe6;          /* thermoplastic road paint: warm off-white text */
+  --paint-dim: #a4a7ad;      /* secondary text, grey biased toward the asphalt hue */
+  --paint-faint: #6c717a;    /* captions, labels */
+  --lane: #f2b705;           /* lane yellow: the single accent */
+  --lane-ink: #1a1405;       /* text placed on lane yellow */
+  --stop: #ef6461;           /* semantic: problem */
+  --go: #4fc69a;             /* semantic: result */
+
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;  /* California highway-sign lineage */
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.5rem;
+  --step-3: clamp(1.75rem, 1.2rem + 2.2vw, 2.5rem);
+  --step-4: clamp(2.25rem, 1.4rem + 3.6vw, 3.75rem);
+  --step-5: clamp(3.5rem, 1.6rem + 8vw, 8.5rem);
+
+  --wrap: 1180px;
+  --radius: 6px;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--asphalt);
+  color: var(--paint);
+  font-family: var(--f-body);
+  font-size: var(--step-0);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+/* asphalt grain */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .5;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+main, header, footer { position: relative; z-index: 1; }
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 2px solid var(--lane); outline-offset: 3px; border-radius: 2px; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; line-height: 1.25; }
+p { margin: 0; }
+.wrap {
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-left: var(--gutter-l);
+  padding-right: var(--gutter-r);
+}
+@media (min-width: 900px) {
+  .wrap { padding-left: max(72px, env(safe-area-inset-left, 0px)); padding-right: max(40px, env(safe-area-inset-right, 0px)); }
+}
+
+/* ---------- lane progress (left edge) ---------- */
+.lane-progress {
+  position: fixed;
+  left: calc(env(safe-area-inset-left, 0px) + 28px);
+  top: 0; bottom: 0;
+  width: 4px;
+  z-index: 5;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, var(--asphalt-3) 0 26px, transparent 26px 44px);
+}
+.lane-progress i {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(to bottom, var(--lane) 0 26px, transparent 26px 44px);
+  transform-origin: top;
+  transform: scaleY(var(--p, 0));
+}
+.top-progress { display: none; }
+@media (max-width: 899px) {
+  .lane-progress { display: none; }
+  .top-progress {
+    display: block; position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 30;
+    background: var(--lane); transform-origin: left; transform: scaleX(var(--p, 0));
+  }
+}
+
+/* ---------- nav ---------- */
+.nav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  background: color-mix(in srgb, var(--asphalt) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--asphalt-3);
+}
+.nav .wrap { display: flex; align-items: center; gap: 24px; min-height: 56px; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; letter-spacing: .04em; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.brand-mark { display: inline-grid; gap: 2px; width: 18px; }
+.brand-mark span { height: 3px; background: var(--paint); }
+.brand-mark span:first-child { background: var(--lane); }
+.nav ul { list-style: none; display: flex; gap: 22px; margin: 0 0 0 auto; padding: 0; }
+.nav a.link {
+  font-family: var(--f-display); font-weight: 600; letter-spacing: .12em; font-size: .9rem;
+  text-transform: uppercase; text-decoration: none; color: var(--paint-dim);
+  padding-block: 6px; position: relative;
+}
+.nav a.link::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--lane); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
+.nav a.link:hover, .nav a.link[aria-current="true"] { color: var(--paint); }
+.nav a.link:hover::after, .nav a.link[aria-current="true"]::after { transform: scaleX(1); }
+@media (max-width: 640px) { .nav ul { gap: 14px; } .nav a.link { font-size: .78rem; letter-spacing: .08em; } .nav .hide-sm { display: none; } }
+
+/* ---------- shared bits ---------- */
+.eyebrow {
+  font-family: var(--f-display); font-weight: 600; text-transform: uppercase;
+  letter-spacing: .22em; font-size: .85rem; color: var(--lane);
+}
+.mono { font-family: var(--f-mono); }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--step--1); line-height: 1.3;
+  padding: 5px 10px; border: 1px solid var(--asphalt-3); border-radius: 999px;
+  color: var(--paint-dim); background: var(--asphalt-2);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--f-display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  font-size: .95rem; text-decoration: none; cursor: pointer;
+  padding: 11px 18px; border-radius: var(--radius); border: 1px solid var(--paint-faint);
+  background: transparent; color: var(--paint);
+  transition: background .25s, color .25s, border-color .25s, transform .25s;
+}
+.btn:hover { border-color: var(--paint); transform: translateY(-2px); }
+.btn.primary { background: var(--lane); border-color: var(--lane); color: var(--lane-ink); }
+.btn.primary:hover { background: #ffc61a; }
+.btn svg { width: 16px; height: 16px; flex: none; }
+.btn .arr { transition: transform .25s; }
+.btn:hover .arr { transform: translateX(3px); }
+
+section { padding-block: clamp(72px, 10vw, 140px); }
+.station {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  border-top: 2px solid var(--paint);
+  padding-top: 18px; margin-bottom: clamp(32px, 5vw, 56px);
+}
+.station .num {
+  font-family: var(--f-display); font-weight: 800; font-size: var(--step-2);
+  color: var(--asphalt); background: var(--paint); padding: 0 10px; line-height: 1.3;
+}
+.station h2 { font-family: var(--f-display); font-weight: 700; font-size: var(--step-4); text-transform: uppercase; letter-spacing: .01em; line-height: 1; }
+.station .sub { color: var(--paint-dim); margin-left: auto; font-size: var(--step--1); }
+
+/* ---------- hero ---------- */
+.hero { padding-block: clamp(48px, 7vw, 96px) clamp(56px, 8vw, 110px); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); align-items: center; }
+@media (max-width: 899px) { .hero .wrap { grid-template-columns: 1fr; } }
+.hero h1 {
+  font-family: var(--f-display); font-weight: 800; text-transform: uppercase;
+  font-size: var(--step-5); line-height: .88; letter-spacing: -.005em;
+  margin-top: 18px;
+}
+.hero h1 .line { display: block; overflow: hidden; padding-bottom: .04em; }
+.hero h1 .line > span { display: inline-block; }
+.hero h1 .accent { color: var(--lane); }
+.thesis { margin-top: 26px; font-size: var(--step-2); font-weight: 600; line-height: 1.45; max-width: 26ch; }
+.thesis em { font-style: normal; color: var(--lane); }
+.hero .lead { margin-top: 16px; color: var(--paint-dim); max-width: 52ch; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 40px; background: var(--asphalt-3); border: 1px solid var(--asphalt-3); }
+.facts div { background: var(--asphalt); padding: 14px 16px; }
+.facts b { display: block; font-family: var(--f-display); font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.facts span { font-size: var(--step--1); color: var(--paint-faint); }
+@media (max-width: 560px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* the crossing */
+.crossing {
+  position: relative; aspect-ratio: 5 / 6; max-width: 100%;
+  border-radius: var(--radius); overflow: hidden;
+  background:
+    radial-gradient(120% 70% at 50% 120%, #0d0f12 0%, transparent 60%),
+    linear-gradient(180deg, #191c21, #121418);
+  border: 1px solid var(--asphalt-3);
+  isolation: isolate;
+}
+.crossing .kerb { position: absolute; left: 0; right: 0; height: 10px; background: repeating-linear-gradient(90deg, #2b2f36 0 40px, #23262c 40px 80px); }
+.crossing .kerb.t { top: 0; } .crossing .kerb.b { bottom: 0; }
+.crossing .edge { position: absolute; top: 10%; bottom: 10%; width: 3px; background: var(--paint); opacity: .85; }
+.crossing .edge.l { left: 9%; } .crossing .edge.r { right: 9%; }
+.crossing .stripes { position: absolute; left: 14%; right: 14%; top: 13%; bottom: 13%; display: grid; grid-template-rows: repeat(6, 1fr); gap: 5.5%; }
+.crossing .stripe {
+  background: var(--paint);
+  transform-origin: left center;
+  -webkit-mask: var(--worn) center/180px 180px, linear-gradient(#000, #000);
+  -webkit-mask-composite: source-in;
+  mask: var(--worn) center/180px 180px;
+  --worn: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 2.15'/></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>");
+}
+.crossing .stripe:first-child { background: var(--lane); }
+.crossing .roller {
+  position: absolute; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--lane); box-shadow: 0 0 0 6px color-mix(in srgb, var(--lane) 25%, transparent);
+  left: 14%; top: 13%; opacity: 0;
+}
+.crossing .sweep {
+  position: absolute; inset: -20% -60%; z-index: 2; pointer-events: none;
+  background: radial-gradient(30% 40% at 50% 50%, rgba(255, 240, 200, .16), transparent 70%);
+  transform: translateX(-70%); mix-blend-mode: screen;
+}
+.crossing .tag {
+  position: absolute; left: 14%; bottom: 3.5%; z-index: 3;
+  font-family: var(--f-mono); font-size: .7rem; letter-spacing: .14em; color: var(--paint-faint);
+}
+.crossing .tag b { color: var(--lane); font-weight: 500; }
+
+/* ---------- at a glance ---------- */
+.glance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 899px) { .glance-grid { grid-template-columns: 1fr; } }
+.metric {
+  background: var(--asphalt-2); border: 1px solid var(--asphalt-3); border-radius: var(--radius);
+  padding: 22px 22px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.metric .vals { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: var(--f-display); font-weight: 700; }
+.metric .before { font-size: 1.6rem; color: var(--paint-faint); text-decoration: line-through; text-decoration-color: var(--stop); text-decoration-thickness: 2px; }
+.metric .to { color: var(--paint-faint); font-size: 1.2rem; }
+.metric .after { font-size: 3rem; line-height: 1; color: var(--lane); font-variant-numeric: tabular-nums; }
+.metric .unit { font-size: 1.2rem; color: var(--paint-dim); margin-left: -6px; }
+.metric h3 { font-size: var(--step-0); font-weight: 600; }
+.metric p { color: var(--paint-dim); font-size: var(--step--1); line-height: 1.6; }
+.metric .src { margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--asphalt-3); font-family: var(--f-mono); font-size: .72rem; color: var(--paint-faint); letter-spacing: .04em; }
+
+/* ---------- project intro ---------- */
+.proj-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+@media (max-width: 899px) { .proj-head { grid-template-columns: 1fr; } }
+.proj-title { font-family: var(--f-display); font-weight: 800; font-size: var(--step-5); line-height: .9; text-transform: uppercase; }
+.proj-desc { margin-top: 18px; color: var(--paint-dim); max-width: 56ch; }
+.proj-meta { margin-top: 24px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 20px; font-size: var(--step--1); }
+.proj-meta dt { color: var(--paint-faint); font-family: var(--f-display); letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+.proj-meta dd { margin: 0; }
+.proj-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+.shot { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--asphalt-3); background: var(--asphalt-2); }
+.shot img { width: 100%; height: auto; transform: scale(1.06); }
+.shot figcaption { position: absolute; left: 12px; bottom: 10px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .1em; color: var(--paint); background: rgba(10, 11, 13, .7); padding: 4px 8px; border-radius: 3px; }
+.shot-pair { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; }
+.shot-pair .shot img { aspect-ratio: 16 / 10; object-fit: cover; }
+@media (max-width: 560px) { .shot-pair { grid-template-columns: 1fr; } }
+
+.role { margin-top: clamp(40px, 6vw, 64px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-block: 1px solid var(--asphalt-3); }
+.role li { list-style: none; padding: 18px 20px 18px 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.role li + li { padding-left: 20px; border-left: 1px solid var(--asphalt-3); }
+.role b { font-family: var(--f-display); font-size: 1rem; letter-spacing: .14em; color: var(--lane); text-transform: uppercase; font-weight: 600; }
+.role span { font-weight: 600; line-height: 1.45; }
+.role ul { padding: 0; margin: 0; display: contents; }
+@media (max-width: 899px) { .role { grid-template-columns: repeat(2, minmax(0, 1fr)); } .role li:nth-child(3) { padding-left: 0; border-left: 0; } .role li:nth-child(n+3) { border-top: 1px solid var(--asphalt-3); } }
+@media (max-width: 480px) { .role { grid-template-columns: 1fr; } .role li, .role li + li { padding-left: 0; border-left: 0; } .role li + li { border-top: 1px solid var(--asphalt-3); } }
+
+.sub-h { display: flex; align-items: baseline; gap: 14px; margin: clamp(56px, 8vw, 96px) 0 24px; flex-wrap: wrap; }
+.sub-h h3 { font-size: var(--step-3); font-weight: 700; }
+.sub-h .eyebrow { font-size: .8rem; }
+.sub-h p { color: var(--paint-dim); flex-basis: 100%; max-width: 70ch; }
+
+/* ---------- server-authority flow ---------- */
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; position: relative; }
+.flow .node {
+  position: relative; padding: 20px; border: 1px solid var(--asphalt-3); background: var(--asphalt-2);
+  min-height: 150px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  transition: border-color .35s, background .35s;
+}
+.flow .node + .node { border-left: 0; }
+.flow .node .k { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .1em; color: var(--paint-faint); }
+.flow .node h4 { font-size: var(--step-1); font-weight: 700; }
+.flow .node p { font-size: var(--step--1); color: var(--paint-dim); line-height: 1.55; }
+.flow .node.server { background: #20232a; }
+.flow .node.server .k::after { content: " · HOST"; color: var(--lane); }
+.flow .node.is-on { border-color: var(--lane); background: color-mix(in srgb, var(--lane) 9%, var(--asphalt-2)); }
+.flow .node.is-on h4 { color: var(--lane); }
+.flow .pipe { position: absolute; left: 0; right: 0; top: -14px; height: 4px; background: repeating-linear-gradient(90deg, var(--asphalt-3) 0 16px, transparent 16px 26px); }
+.flow .pipe i { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--lane) 0 16px, transparent 16px 26px); transform-origin: left; transform: scaleX(var(--f, 1)); }
+.flow .packet { position: absolute; top: -20px; left: 0; width: 16px; height: 16px; border-radius: 3px; background: var(--lane); box-shadow: 0 0 18px color-mix(in srgb, var(--lane) 60%, transparent); opacity: 0; }
+@media (max-width: 899px) {
+  .flow { grid-template-columns: 1fr 1fr; }
+  .flow .node:nth-child(odd of .node) { border-left: 1px solid var(--asphalt-3); }
+  .flow .node:nth-child(n+3 of .node) { border-top: 0; }
+  .flow .pipe, .flow .packet { display: none; }
+}
+@media (max-width: 480px) { .flow { grid-template-columns: 1fr; } .flow .node { border-left: 1px solid var(--asphalt-3) !important; } .flow .node + .node { border-top: 0; } }
+.holders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.holders div { border: 1px dashed var(--asphalt-3); border-radius: var(--radius); padding: 14px 16px; min-width: 0; }
+.holders b { font-family: var(--f-mono); font-size: .82rem; color: var(--paint); font-weight: 500; }
+.holders span { display: block; color: var(--paint-faint); font-size: var(--step--1); }
+@media (max-width: 640px) { .holders { grid-template-columns: 1fr; } }
+
+/* ---------- decision ---------- */
+.decision { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); align-items: start; }
+@media (max-width: 899px) { .decision { grid-template-columns: 1fr; } }
+.opts { display: grid; gap: 10px; }
+.opt { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 14px; padding: 16px 18px; border: 1px solid var(--asphalt-3); border-radius: var(--radius); background: var(--asphalt-2); }
+.opt .letter { grid-row: span 2; font-family: var(--f-display); font-weight: 800; font-size: 1.9rem; line-height: 1; color: var(--paint-faint); }
+.opt h4 { font-size: var(--step-0); font-weight: 600; }
+.opt p { font-size: var(--step--1); color: var(--paint-dim); }
+.opt.no p::before { content: "✕ "; color: var(--stop); }
+.opt.yes { border-color: var(--lane); }
+.opt.yes .letter { color: var(--lane); }
+.opt.yes p::before { content: "✓ "; color: var(--go); }
+.opt.proof { background: var(--lane); border-color: var(--lane); color: var(--lane-ink); }
+.opt.proof .letter, .opt.proof p { color: var(--lane-ink); }
+
+/* ---------- incident log (tabs) ---------- */
+.log { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 0; border: 1px solid var(--asphalt-3); border-radius: var(--radius); overflow: hidden; background: var(--asphalt-2); }
+@media (max-width: 899px) { .log { grid-template-columns: 1fr; } }
+.log-list { list-style: none; margin: 0; padding: 0; border-right: 1px solid var(--asphalt-3); display: flex; flex-direction: column; }
+@media (max-width: 899px) { .log-list { border-right: 0; border-bottom: 1px solid var(--asphalt-3); flex-direction: row; overflow-x: auto; scrollbar-width: thin; } }
+.log-tab {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 2px 10px;
+  padding: 16px 18px; border-bottom: 1px solid var(--asphalt-3); position: relative;
+  transition: background .25s;
+}
+@media (max-width: 899px) { .log-tab { width: 230px; flex: none; border-bottom: 0; border-right: 1px solid var(--asphalt-3); } }
+.log-tab:hover { background: #20242a; }
+.log-tab .id { grid-row: span 2; font-family: var(--f-mono); font-size: .78rem; color: var(--paint-faint); padding-top: 2px; }
+.log-tab .t { font-weight: 600; font-size: .95rem; line-height: 1.4; }
+.log-tab .m { font-family: var(--f-mono); font-size: .72rem; color: var(--paint-faint); }
+.log-tab::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--lane); transform: scaleY(0); transition: transform .3s; }
+.log-tab[aria-selected="true"] { background: #22262d; }
+.log-tab[aria-selected="true"] .id, .log-tab[aria-selected="true"] .m { color: var(--lane); }
+.log-tab[aria-selected="true"]::before { transform: scaleY(1); }
+.log-tab:focus-visible { outline: 2px solid var(--lane); outline-offset: -2px; }
+.panel { padding: clamp(20px, 3vw, 36px); min-width: 0; }
+.panel h4 { font-size: var(--step-2); font-weight: 700; }
+.panel .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.panel .tags .chip.hot { border-color: var(--lane); color: var(--lane); background: color-mix(in srgb, var(--lane) 8%, transparent); }
+.pfr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }
+@media (max-width: 1100px) { .pfr { grid-template-columns: 1fr; gap: 14px; } }
+.pfr > div { min-width: 0; }
+.pfr b { display: inline-block; font-family: var(--f-display); font-weight: 700; letter-spacing: .16em; font-size: .82rem; text-transform: uppercase; margin-bottom: 6px; }
+.pfr .p b { color: var(--stop); } .pfr .f b { color: var(--lane); } .pfr .r b { color: var(--go); }
+.pfr p { font-size: .94rem; color: var(--paint-dim); line-height: 1.7; }
+.pfr p strong { color: var(--paint); font-weight: 600; }
+.panel .foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 22px; }
+.classes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.classes code { font-family: var(--f-mono); font-size: .78rem; padding: 4px 8px; border-radius: 4px; background: #101215; border: 1px solid var(--asphalt-3); color: #c7d0dc; }
+
+/* code block */
+.code { margin-top: 22px; border-radius: var(--radius); background: #0f1114; border: 1px solid var(--asphalt-3); overflow: hidden; }
+.code .bar { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--asphalt-3); font-family: var(--f-mono); font-size: .74rem; color: var(--paint-faint); }
+.code .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--asphalt-3); }
+.code .bar i:first-child { background: var(--lane); }
+.code pre { margin: 0; padding: 16px 18px; overflow-x: auto; font-family: var(--f-mono); font-size: .8rem; line-height: 1.7; color: #d5dbe3; tab-size: 4; }
+.code .ln { display: block; }
+.tk-c { color: #6b7684; font-style: italic; }
+.tk-k { color: #c99cf2; }
+.tk-s { color: #9fd38a; }
+.tk-n { color: #f2b705; }
+.tk-f { color: #7fc4f5; }
+.tk-t { color: #f0c27a; }
+
+/* learnings */
+.rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--asphalt-3); }
+@media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
+.rules li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 20px 20px 20px 0; border-bottom: 1px solid var(--asphalt-3); }
+.rules li:nth-child(even) { padding-left: 20px; border-left: 1px solid var(--asphalt-3); }
+@media (max-width: 760px) { .rules li:nth-child(even) { padding-left: 0; border-left: 0; } }
+.rules .k { font-family: var(--f-display); font-weight: 800; font-size: 1.5rem; color: var(--lane); line-height: 1.2; }
+.rules p { font-weight: 500; line-height: 1.6; }
+
+/* slime party architecture */
+.arch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .arch { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .arch { grid-template-columns: 1fr; } }
+.box { border: 1px solid var(--asphalt-3); border-radius: var(--radius); padding: 16px; background: var(--asphalt); min-width: 0; position: relative; }
+.box .cls { font-family: var(--f-mono); font-size: .72rem; color: var(--paint-faint); overflow-wrap: anywhere; }
+.box h4 { font-size: var(--step-1); font-weight: 700; margin-top: 4px; }
+.box p { font-size: var(--step--1); color: var(--paint-dim); margin-top: 4px; }
+.box.mine { border-color: var(--lane); background: color-mix(in srgb, var(--lane) 6%, var(--asphalt-2)); }
+.box.mine::after { content: "담당"; position: absolute; top: 12px; right: 12px; font-size: .7rem; font-weight: 700; color: var(--lane-ink); background: var(--lane); padding: 1px 7px; border-radius: 3px; }
+.legend { display: flex; gap: 18px; margin-top: 14px; font-size: var(--step--1); color: var(--paint-faint); flex-wrap: wrap; }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--asphalt-3); }
+.legend .m::before { border-color: var(--lane); background: color-mix(in srgb, var(--lane) 25%, transparent); }
+
+.features { display: grid; gap: 16px; }
+.feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(18px, 3vw, 36px); padding: clamp(20px, 3vw, 32px); border: 1px solid var(--asphalt-3); border-radius: var(--radius); background: var(--asphalt-2); }
+@media (max-width: 899px) { .feature { grid-template-columns: 1fr; } }
+.feature > div { min-width: 0; }
+.feature h4 { font-size: var(--step-2); font-weight: 700; }
+.feature .code { margin-top: 0; }
+
+/* text rpg */
+.mini { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 56px); align-items: start; }
+@media (max-width: 899px) { .mini { grid-template-columns: 1fr; } }
+.ratio { display: grid; gap: 14px; }
+.bar-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 64px; gap: 12px; align-items: center; font-size: var(--step--1); }
+.bar-row .track { height: 12px; background: var(--asphalt-3); border-radius: 2px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: var(--paint-faint); transform-origin: left; }
+.bar-row.now .fill { background: var(--lane); }
+.bar-row b { font-family: var(--f-display); font-size: 1.15rem; text-align: right; }
+
+/* skills */
+.skills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--paint); }
+@media (max-width: 899px) { .skills { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .skills { grid-template-columns: 1fr; } }
+.skills > div { padding: 22px 20px 22px 0; min-width: 0; }
+.skills > div + div { padding-left: 20px; border-left: 1px solid var(--asphalt-3); }
+@media (max-width: 899px) { .skills > div:nth-child(3) { padding-left: 0; border-left: 0; } }
+@media (max-width: 480px) { .skills > div, .skills > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--asphalt-3); } }
+.skills h3 { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .16em; font-size: .95rem; font-weight: 700; color: var(--lane); }
+.skills ul { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
+.skills li { font-size: .95rem; }
+.skills li small { display: block; color: var(--paint-faint); font-size: .78rem; line-height: 1.5; }
+
+.timeline { margin-top: 40px; display: grid; gap: 0; border-top: 1px solid var(--asphalt-3); }
+.timeline div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--asphalt-3); font-size: .95rem; }
+.timeline span { font-family: var(--f-mono); font-size: .8rem; color: var(--paint-faint); padding-top: 3px; }
+.timeline small { color: var(--paint-dim); }
+@media (max-width: 560px) { .timeline div { grid-template-columns: 1fr; gap: 2px; } }
+
+/* contact */
+.contact { padding-block: clamp(80px, 12vw, 160px) clamp(48px, 6vw, 72px); text-align: left; }
+.contact .big { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: var(--step-5); line-height: .9; }
+.contact .big span { color: var(--lane); }
+.contact p { margin-top: 18px; color: var(--paint-dim); max-width: 50ch; }
+.contact-rows { margin-top: 36px; display: grid; gap: 0; border-top: 1px solid var(--asphalt-3); max-width: 720px; }
+.contact-rows div { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--asphalt-3); flex-wrap: wrap; }
+.contact-rows dt { width: 90px; font-family: var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--paint-faint); font-weight: 600; font-size: .85rem; }
+.contact-rows dd { margin: 0; font-family: var(--f-mono); font-size: 1rem; user-select: all; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.copy { all: unset; cursor: pointer; font-family: var(--f-display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: .8rem; color: var(--lane); padding: 4px 8px; border-radius: 4px; }
+.copy:hover { background: color-mix(in srgb, var(--lane) 12%, transparent); }
+.copy:focus-visible { outline: 2px solid var(--lane); }
+.end-stripes { margin-top: 70px; height: 54px; background: repeating-linear-gradient(90deg, var(--paint) 0 46px, transparent 46px 92px); opacity: .9; transform-origin: left; }
+footer { padding-block: 22px 40px; color: var(--paint-faint); font-size: .78rem; }
+
+/* discourage saving images */
+img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; pointer-events: none; }
+.shot { -webkit-touch-callout: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+<style>
+/* portfolio2-4 additions */
+.hero-shot { margin: 0; align-self: center; justify-self: center; width: 100%; }
+.hero-shot.phone { max-width: 340px; }
+.hero-shot img { transform: none; }
+.hero-shot.phone img { aspect-ratio: 9 / 19.5; object-fit: cover; object-position: top; }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.trio .shot img { transform: none; aspect-ratio: 9 / 19.5; object-fit: cover; object-position: top; }
+.ba { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.ba .shot img { transform: none; }
+.panel .shot-inline { margin: 18px 0 0; max-width: 720px; }
+.panel .shot-inline img { transform: none; }
+.rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rules > div { background: var(--asphalt-2); border: 1px solid var(--asphalt-3); border-radius: var(--radius); padding: 18px 20px; }
+.rules b { display: block; font-family: var(--f-display); letter-spacing: .06em; font-size: 1.05rem; color: var(--lane); margin-bottom: 6px; }
+.rules p { color: var(--paint-dim); font-size: var(--step--1); line-height: 1.6; }
+.others { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.proj-title { word-break: keep-all; font-size: clamp(2.75rem, 1.2rem + 4.6vw, 5.75rem) !important; }
+.thesis, .lead, .proj-desc, .pfr p, .sub-h p, .metric p { word-break: keep-all; }
+.ba { max-width: 460px; }
+.shot-pair.full { grid-template-columns: 1fr; align-content: start; }
+.shot-pair.full .shot img { aspect-ratio: auto; object-fit: contain; transform: none; }
+.status { margin-top: 18px; font-size: var(--step--1); color: var(--paint-faint); border-left: 3px solid var(--asphalt-3); padding-left: 12px; }
+@media (max-width: 760px) { .rules, .ba { grid-template-columns: 1fr; } .trio { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
+</style>
+
+<div class="lane-progress" aria-hidden="true"><i></i></div>
+<div class="top-progress" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="맨 위로"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>KIM HYUNJUN</a>
+    <ul>
+      <li><a class="link" href="#plan">기획</a></li>
+      <li><a class="link" href="#dev">개발</a></li>
+      <li><a class="link" href="#trouble">트러블슈팅</a></li>
+      <li class="hide-sm"><a class="link" href="#contact">Contact</a></li>
+    </ul>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow" data-hero>Solo Project · Mobile Web Game · AI-assisted</p>
+        <h1 aria-label="팡팡 구슬 던전">
+          <span class="line"><span>Marble Pop</span></span>
+          <span class="line"><span>Dun<span class="accent">geon</span></span></span>
+        </h1>
+        <p class="thesis" data-hero>AI로 <em>빠르게</em> 만들고,<br>결과는 <em>숫자</em>로 확인합니다.</p>
+        <p class="lead" data-hero>공 튕겨깨기와 구슬 조합 로그라이트를 합친 모바일 웹 게임을 기획서 작성부터 구현, 배포, 출시 점검까지 혼자 만들고 있습니다. Claude Code로 구현하고 Codex로 리뷰받되, 증상은 녹화와 측정으로 다시 확인하고 고친 문제는 자동 테스트로 고정했습니다.</p>
+        <div class="hero-actions" data-hero>
+          <a class="btn primary" href="https://hyunjunstar.github.io/HJ-Play/MarbleDungeon/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>지금 플레이</a>
+          <a class="btn" href="#trouble">트러블슈팅 보기 <span class="arr" aria-hidden="true">→</span></a>
+        </div>
+        <div class="facts" data-hero>
+          <div><b>238</b><span>커밋 · 약 3주</span></div>
+          <div><b>825</b><span>자동 테스트</span></div>
+          <div><b>4개</b><span>언어 (한·영·일·중)</span></div>
+          <div><b>7종</b><span>캐릭터 · 필살기</span></div>
+        </div>
+      </div>
+      <figure class="shot hero-shot phone" data-hero><img src="assets/home.jpg" alt="팡팡 구슬 던전 로비 화면: 구슬 요정 캐릭터와 모험 시작 버튼" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="glance" aria-labelledby="glance-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">00</span><h2 id="glance-h">1분 요약</h2><span class="sub">직접 해결한 문제를 숫자로 먼저 보여드립니다</span></div>
+      <div class="glance-grid">
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="before">4</span><span class="to">→</span><span class="after">1.5</span><span class="unit">배</span></div>
+          <h3>구슬 꼬리 길이 (지름 대비)</h3>
+          <p>프레임 수로 자르던 궤적을 길이 기준으로 바꿔, 구슬과 꼬리가 사슬처럼 이어지던 잔상을 없앴습니다.</p>
+          <span class="src">RENDER · trimTrail</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="before">20</span><span class="to">→</span><span class="after" data-count="0" data-from="20">0</span><span class="unit">%</span></div>
+          <h3>조준할 때 몸이 줄어드는 정도</h3>
+          <p>첫 수정은 틀렸고, 그림 맞춤 도구가 팔까지 포함해 크기를 맞추던 것이 진짜 원인이었습니다.</p>
+          <span class="src">TOOLS · front-pose-fit.py</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="before">28</span><span class="to">→</span><span class="after" data-count="16" data-from="28">16</span><span class="unit">px</span></div>
+          <h3>높이 32px 버튼의 끝 반원</h3>
+          <p>CSS 변수가 최상위에서 계산되어 모든 버튼 끝이 28px로 고정되던 것을 요소마다 다시 계산되게 했습니다.</p>
+          <span class="src">STYLE · var(--bh)</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">64.7</span><span class="unit">%</span></div>
+          <h3>봇이 잰 1지역 클리어율</h3>
+          <p>목표 50~70% 안에 들어오는지, 조준 봇이 수백 판을 자동으로 플레이해 확인하며 수치를 조정했습니다.</p>
+          <span class="src">SIM · 300판 · 3지역</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">825</span><span class="unit">건</span></div>
+          <h3>자동 테스트</h3>
+          <p>새 기능은 테스트와 함께 만드는 것을 규칙으로 두고, 고친 버그는 회귀 테스트로 남겼습니다.</p>
+          <span class="src">VITEST · Playwright</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">0</span><span class="unit">회</span></div>
+          <h3>오프라인 재실행 실패</h3>
+          <p>첫 방문 직후 오프라인으로 열면 켜지지 않던 문제를 서비스 워커 캐시 목록으로 해결하고, 공개 주소에서 자동 확인합니다.</p>
+          <span class="src">DEPLOY · Service Worker</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="plan" aria-labelledby="plan-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">01</span><h2 id="plan-h">Planning</h2><span class="sub">2026.10 – 진행 중 · 1인</span></div>
+      <div class="proj-head">
+        <div data-reveal>
+          <p class="eyebrow">턴제 공 튕겨깨기 퍼즐 + 구슬 조합 로그라이트</p>
+          <h3 class="proj-title" style="margin-top:12px">팡팡 구슬 던전</h3>
+          <p class="proj-desc">한 손가락으로 당겼다 놓으면 구슬 수십 개가 튕기며 블록을 깎는 턴제 퍼즐입니다. 층을 깰 때마다 구슬을 고르고 합쳐 성장하고, 3지역 × 10층을 내려가 보스를 쓰러뜨립니다. 기획서(GDD)에 게임 루프, 턴 진행 순서, 데이터 구조, 수익화와 라이브 운영, 밸런스 목표까지 먼저 정리하고 그 문서를 기준으로 개발했습니다.</p>
+          <dl class="proj-meta">
+            <dt>플랫폼</dt><dd>모바일 웹 (세로·한 손), GitHub Pages 배포</dd>
+            <dt>플레이 단위</dt><dd>1턴 5~15초 · 1층 2~3분 · 1판 15~25분</dd>
+            <dt>장기 목표</dt><dd>공방 성장 · 캐릭터 7종 해금 · 시즌 패스 · 도감 · 일일 도전</dd>
+            <dt>기술</dt><dd>TypeScript · PixiJS 8 · Vite · Vitest · Playwright</dd>
+          </dl>
+          <div class="proj-actions"><a class="btn primary" href="https://hyunjunstar.github.io/HJ-Play/MarbleDungeon/" target="_blank" rel="noopener">플레이 <span class="arr" aria-hidden="true">↗</span></a>
+            <a class="btn" href="https://github.com/hyunjunstar/troubleshooting-portfolio/tree/main/marble-dungeon" target="_blank" rel="noopener">문제 해결 기록 <span class="arr" aria-hidden="true">↗</span></a></div>
+        </div>
+        <div class="trio" data-reveal>
+          <figure class="shot" style="margin:0"><img src="assets/battle.jpg" alt="전투 화면: 당겼다 놓아 발사하는 첫 플레이 안내" loading="lazy"><figcaption>BATTLE</figcaption></figure>
+          <figure class="shot" style="margin:0"><img src="assets/boss.jpg" alt="보스 등장 화면" loading="lazy"><figcaption>BOSS</figcaption></figure>
+          <figure class="shot" style="margin:0"><img src="assets/pass.jpg" alt="시즌 패스 보상 창" loading="lazy"><figcaption>SEASON PASS</figcaption></figure>
+        </div>
+      </div>
+      <ul class="role" data-reveal>
+        <li><b>Plan</b><span>레퍼런스 분석, 기획서(GDD), 시간 단위 플레이 설계</span></li>
+        <li><b>Build</b><span>TypeScript·PixiJS 구현, 이펙트·사운드·UI</span></li>
+        <li><b>Balance</b><span>조준 봇 시뮬레이션으로 클리어율·아이템 기여 측정</span></li>
+        <li><b>Ship</b><span>4개 언어, 오프라인 지원, 공개 주소 자동 점검</span></li>
+      </ul>
+      <div class="sub-h" data-reveal>
+        <span class="eyebrow">Decision</span>
+        <h3>실시간 액션 대신 턴제 퍼즐로</h3>
+        <p>Ballz, BALL x PIT, Holedown을 분석해 가져올 것과 피할 것을 표로 정리했습니다. 쉬운 조작은 살리고 조합 성장의 깊이를 더하되, 모바일 캐주얼 유저에게 부담인 실시간 조작은 뺐습니다.</p>
+      </div>
+      <div class="decision">
+        <div class="opts" data-reveal>
+          <div class="opt no"><span class="letter">A</span><h4>Ballz식 단순 반복</h4><p>조작은 쉽지만 성장이 얕고, 과한 광고로 평가가 나빠진 사례</p></div>
+          <div class="opt no"><span class="letter">B</span><h4>BALL x PIT식 실시간</h4><p>조합의 재미는 크지만 실시간 조작은 한 손 모바일에 부담</p></div>
+          <div class="opt yes"><span class="letter">C</span><h4>턴제 조준 + 구슬 조합 · 채택</h4><p>조준 각도와 조합을 고민하는 퍼즐로 원작과 감각이 겹치지 않음</p></div>
+          <div class="opt proof"><span class="letter">✓</span><h4>봇 시뮬레이션으로 검증</h4><p>1지역 64.7% · 2지역 27.3% · 3지역 11.3%</p></div>
+        </div>
+        <figure class="shot" data-reveal style="margin:0"><img src="assets/skill.jpg" alt="필살기 연출 프레임 점검: 0.15초 단위 캡처 띠" loading="lazy"><figcaption>SKILL · 프레임 점검</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="dev" aria-labelledby="dev-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">02</span><h2 id="dev-h">Development</h2><span class="sub">Claude Code 구현 · Codex 리뷰 · 측정으로 검증</span></div>
+      <div class="sub-h" data-reveal>
+        <span class="eyebrow">Architecture</span>
+        <h3>규칙은 화면을 모르고, 콘텐츠는 데이터로만</h3>
+        <p>게임 규칙 코드는 화면 API를 쓰지 않고 시드 난수만 써서, 같은 판을 언제든 다시 재현할 수 있습니다. 덕분에 봇 시뮬레이션과 회귀 테스트가 화면 없이 빠르게 돌아갑니다.</p>
+      </div>
+      <div class="flow" data-flow>
+        <div class="pipe" aria-hidden="true"><i></i></div>
+        <div class="packet" aria-hidden="true"></div>
+        <div class="node"><span class="k">CORE</span><h4>규칙 · 턴 진행</h4><p>화면 API 없음, 시드 난수로 재현 가능</p></div>
+        <div class="node"><span class="k">CONTENT</span><h4>JSON 데이터</h4><p>구슬·블록·유물은 데이터로만 추가, 자동 문법 검사</p></div>
+        <div class="node"><span class="k">RENDER</span><h4>PixiJS 화면</h4><p>이펙트·HUD·캐릭터 리그, 해상도별 그림 축소</p></div>
+        <div class="node"><span class="k">DEPLOY</span><h4>웹 배포</h4><p>서비스 워커 오프라인, 공개 주소 자동 점검</p></div>
+      </div>
+      <div class="holders" data-reveal>
+        <div><b>SIM</b><span>조준 봇 · 층별 생존율 · 아이템 기여</span></div>
+        <div><b>AUDIT</b><span>폰 360·390px · PC 화면 자동 캡처</span></div>
+        <div><b>I18N</b><span>한·영·일·중 사전 · 용어집</span></div>
+      </div>
+      <div class="sub-h" data-reveal>
+        <span class="eyebrow">AI Workflow</span>
+        <h3>AI에게 맡기기 전에 규칙부터</h3>
+        <p>작업 규칙 파일(CLAUDE.md)을 직접 만들고 고쳐 가며, AI가 지켜야 할 기준을 정했습니다. AI 리뷰도 재현해 보고 맞는 것만 반영했습니다.</p>
+      </div>
+      <div class="rules" data-reveal>
+        <div><b>기획서는 수정 금지</b><p>기준값과 턴 순서는 기획서를 따르게 해서, AI가 편의대로 규칙을 바꾸지 못하게 했습니다.</p></div>
+        <div><b>테스트 없으면 끝내지 않기</b><p>새 기능은 테스트와 함께, 테스트가 실패한 채로 작업을 끝내지 않는 것을 규칙으로 두었습니다.</p></div>
+        <div><b>회차마다 진행 기록</b><p>문제, 변경, 확인 결과를 PROGRESS.md에 남겨 다음 작업이 이전 맥락을 잃지 않게 했습니다.</p></div>
+        <div><b>리뷰는 재현 후 반영</b><p>Codex 지적 3건 중 1건은 코드로 확인해 오판으로 판단하고 반영하지 않았습니다.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="trouble" aria-labelledby="tr-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">03</span><h2 id="tr-h">Troubleshooting</h2><span class="sub">문제 → 원인·해결 → 결과</span></div>
+      <div class="log" data-reveal>
+        <ul class="log-list" role="tablist" aria-label="팡팡 구슬 던전 트러블슈팅 목록">
+          <li><button class="log-tab" role="tab" id="tab-1" aria-controls="case-1" aria-selected="true"><span class="id">#01</span><span class="t">구슬 잔상이 여러 겹으로 보임</span><span class="m">진짜 원인은 조준 점선</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-2" aria-controls="case-2" aria-selected="false" tabindex="-1"><span class="id">#02</span><span class="t">쏠 때 캐릭터가 작아짐</span><span class="m">첫 수정 실패 → 도구가 원인</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-3" aria-controls="case-3" aria-selected="false" tabindex="-1"><span class="id">#03</span><span class="t">모든 버튼 끝이 뭉툭함</span><span class="m">CSS 변수 계산 위치</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-4" aria-controls="case-4" aria-selected="false" tabindex="-1"><span class="id">#04</span><span class="t">PC에서 UI가 픽셀 깨짐</span><span class="m">밉맵 없는 축소 · 점검 도구 버그</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-5" aria-controls="case-5" aria-selected="false" tabindex="-1"><span class="id">#05</span><span class="t">배포 후 오프라인 실행 실패</span><span class="m">서비스 워커 · 배포 스크립트</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-6" aria-controls="case-6" aria-selected="false" tabindex="-1"><span class="id">#06</span><span class="t">필살기 소리가 크다는 의심</span><span class="m">고치지 않는 것도 결론</span></button></li>
+        </ul>
+        <div class="panel" role="tabpanel" id="case-1" aria-labelledby="tab-1">
+          <h4>구슬 잔상 — 녹화를 프레임으로 쪼개 진짜 원인 찾기</h4>
+          <div class="tags"><span class="chip hot">꼬리 4배 → 1.5배</span><span class="chip">조준 점 6.4 → 4.4px</span><span class="chip">테스트 2건</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>"조준을 아래로 내릴수록 구슬 잔상이 엄청 여러 개로 보인다"는 피드백과 화면 녹화를 받았습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>먼저 궤적을 프레임 9개로 자르던 것을 <strong>길이 기준(지름 1.5배)</strong>으로 바꿨습니다. 그래도 남아 녹화를 프레임으로 뽑아 보니, 잔상처럼 보인 것은 쏜 구슬이 아니라 <strong>조준 점선</strong>이었습니다. 점 하나가 구슬만 하고 빛무리가 넓어 꼬리처럼 보였습니다. 점을 작고 또렷하게, 간격을 좁게, 멀수록 옅게 바꿨습니다.</p></div>
+            <div class="r"><b>Result</b><p>구슬마다 짧은 혜성 꼬리만 남고 서로 이어지지 않습니다. 사용자가 말한 증상과 실제 원인이 다를 수 있다는 것을, 추측 대신 프레임으로 확인했습니다.</p></div>
+          </div>
+          <figure class="shot shot-inline"><img src="assets/aim-dots-recording.png" alt="녹화에서 뽑은 프레임: 구슬처럼 큰 조준 점선이 이어져 잔상처럼 보인다" loading="lazy"></figure><div class="code"><div class="bar"><i></i><i></i><i></i>src/render/fxmath.ts</div><pre data-hl>// 궤적을 뒤에서부터 재서 maxLen을 넘는 지점을 정확히 잘라 낸다
+export function trimTrail(h: number[], maxLen: number): void {
+  let len = 0;
+  for (let i = h.length - 2; i &gt;= 2; i -= 2) {
+    const seg = Math.hypot(h[i]! - h[i - 2]!, h[i + 1]! - h[i - 1]!);
+    if (len + seg &gt; maxLen) { /* 경계에서 잘라 내고 앞부분 삭제 */ return; }
+    len += seg;
+  }
+}</pre></div>
+        </div>
+        <div class="panel" role="tabpanel" id="case-2" aria-labelledby="tab-2" hidden>
+          <h4>쏠 때 작아지는 캐릭터 — 첫 번째 수정은 틀렸다</h4>
+          <div class="tags"><span class="chip hot">몸 크기 10~20% → 0</span><span class="chip">Python 도구</span><span class="chip">AI 리뷰 1건 오판 판단</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>"구슬을 쏘려고 누르면 캐릭터가 부자연스럽게 작아진다." 조준할 때 6~8% 웅크리는 연출을 원인으로 보고 지웠지만 <strong>같은 증상이 남았습니다.</strong></p></div>
+            <div class="f"><b>Cause · Fix</b><p>그림을 게임에 넣는 맞춤 도구가 <strong>팔과 무기까지 포함한 실루엣 전체</strong>를 같은 높이로 맞추고 있었습니다. 팔을 든 조준 그림은 그만큼 몸이 10~20% 작게 들어갔습니다. 몸통 기준으로 높이를 대기 그림에 맞추는 Python 도구를 만들어 모든 포즈를 다시 맞췄습니다.</p></div>
+            <div class="r"><b>Result</b><p>대기 → 조준으로 바뀔 때 몸 크기가 변하지 않습니다. Codex 리뷰 3건 중 2건은 재현되어 반영했고, "텍스처가 갱신되지 않는다"는 1건은 매 프레임 갱신됨을 코드로 확인해 오판으로 판단했습니다.</p></div>
+          </div>
+          
+        </div>
+        <div class="panel" role="tabpanel" id="case-3" aria-labelledby="tab-3" hidden>
+          <h4>버튼 끝 반원이 전부 28px로 고정되던 문제</h4>
+          <div class="tags"><span class="chip hot">28px → 높이의 절반</span><span class="chip">4개 언어 × 2개 폭 점검</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>"코인·열쇠 알약 배경이 못생겼다", "버튼끼리 통일감이 없다"는 피드백을 받았습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>끝 반원 크기를 버튼 높이 변수 <code>var(--bh)</code>로 계산했는데, 이 변수를 쓰는 값들을 최상위 <code>#app</code>에만 선언했습니다. CSS 변수는 <strong>선언된 위치에서 계산</strong>되기 때문에 모든 버튼이 #app의 56px 기준으로 풀려 끝이 28px로 고정됐습니다. 하위 요소와 가상 요소에 다시 선언해 각 버튼 위치에서 계산되게 했습니다.</p></div>
+            <div class="r"><b>Result</b><p>높이 32px 버튼은 끝이 16px 반원이 되어 테가 얇고 깔끔해졌습니다. 탭 경계 누르기, 끝 반원 = 높이 절반, 탭 넘침까지 재는 점검 스크립트를 만들어 4개 언어에서 확인했습니다.</p></div>
+          </div>
+          
+        </div>
+        <div class="panel" role="tabpanel" id="case-4" aria-labelledby="tab-4" hidden>
+          <h4>PC 화면에서만 UI가 깨져 보이던 문제</h4>
+          <div class="tags"><span class="chip hot">그림 해상도 1:1</span><span class="chip">PC 점검 모드 추가</span><span class="chip">점검 도구 버그 수정</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>구슬 수 표시(×10 알약)가 PC 화면에서 깨져 보인다는 캡처를 받았습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>원인은 세 가지였습니다. 그림을 화면의 2~3배로 만들어 <strong>밉맵 없이 줄여</strong> 픽셀을 건너뛰었고, 알약이 캐릭터 그룹 안에 있어 소수점 위치에 그려졌고, 작은 PC 창에서는 브라우저가 한 번 더 줄였습니다. 해상도를 1:1로, 기울지 않는 별도 층으로 빼고 화면 픽셀에 맞췄습니다.</p></div>
+            <div class="r"><b>Result</b><p>PC 점검 모드(1366×768)를 만들어 화면 전체를 다시 훑어 체력 숫자·보스 그림·요정 날개의 같은 원인도 함께 고쳤습니다. 이 과정에서 <strong>점검 도구 자체의 배율 계산 버그</strong>도 찾아 고쳤습니다.</p></div>
+          </div>
+          <div class="ba"><figure class="shot" style="margin:0"><img src="assets/pixel-before.png" alt="고치기 전: 테두리가 들쭉날쭉한 알약" loading="lazy"><figcaption>BEFORE</figcaption></figure><figure class="shot" style="margin:0"><img src="assets/pixel-after.png" alt="고친 후: 매끈한 알약" loading="lazy"><figcaption>AFTER</figcaption></figure></div>
+        </div>
+        <div class="panel" role="tabpanel" id="case-5" aria-labelledby="tab-5" hidden>
+          <h4>배포 뒤 오프라인 실행 실패와 지운 파일이 남던 문제</h4>
+          <div class="tags"><span class="chip hot">오프라인 재실행 성공</span><span class="chip">옛 캐시 정리 확인</span><span class="chip">재방문자 재현</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>첫 방문 직후 오프라인으로 다시 열면 게임이 켜지지 않았고, 이미 지운 음성 파일이 공개 주소에서 계속 열렸습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>나중에 불러오는 스크립트 조각이 서비스 워커 캐시 목록에 없었습니다. 빌드 때 파일 목록을 만들어 미리 받게 했습니다. 지운 파일은 배포 설정이 기존 파일을 남기는 방식이라 쌓인 것이어서, 배포 스크립트가 <strong>이번 빌드에 없는 파일을 이 게임 폴더에서만</strong> 지우게 했습니다.</p></div>
+            <div class="r"><b>Result</b><p>"첫 방문 → 오프라인 새로고침 → 실행"을 공개 주소에서 자동으로 확인합니다. 배포 전 버전을 받아 둔 브라우저로 다시 접속해, 옛 캐시가 지워지고 새 버전 하나만 남는 것까지 재방문자 상황 그대로 확인했습니다.</p></div>
+          </div>
+          
+        </div>
+        <div class="panel" role="tabpanel" id="case-6" aria-labelledby="tab-6" hidden>
+          <h4>필살기 소리 최고값 — 가설을 시험하고 되돌리기</h4>
+          <div class="tags"><span class="chip hot">리미터 누름량 최대 0.6dB</span><span class="chip">가설 2개 되돌림</span><span class="chip">자동 점검 추가</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>측정해 보니 일부 캐릭터의 필살기 소리 최고값이 0.9대로 높게 나왔습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>꼬리 음 -3dB, 연쇄 화음 빼기를 시험했지만 <strong>최고값이 그대로</strong>여서 둘 다 되돌렸습니다. 측정기에 "리미터가 실제로 누른 양"을 추가해 재 보니, 최고값은 리미터 앞의 순간값일 뿐이었습니다.</p></div>
+            <div class="r"><b>Result</b><p>일곱 캐릭터 중 최대 0.6dB, 나머지 0dB로 소리가 눌려 납작해지는 문제는 없었습니다. 코드는 바꾸지 않고 "누름량 6dB 미만"을 자동 점검 조건으로 추가했습니다. 숫자 하나만 보고 멀쩡한 소리를 망치지 않으려 했습니다.</p></div>
+          </div>
+          
+        </div>
+      </div>
+      
+    </div>
+  </section>
+
+  <section id="skills" aria-labelledby="sk-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">04</span><h2 id="sk-h">Stack</h2><span class="sub">이 프로젝트에서 실제로 쓴 것만 적었습니다</span></div>
+      <div class="skills" data-reveal>
+        <div><h3>Game</h3><ul><li>TypeScript · PixiJS 8<small>WebGL 렌더링, 이펙트, 캐릭터 리그</small></li><li>Vite · Service Worker<small>오프라인 지원, 캐시 세대 관리</small></li><li>Web Audio<small>효과음·리미터 측정</small></li></ul></div>
+        <div><h3>Quality</h3><ul><li>Vitest<small>자동 테스트 825건</small></li><li>Playwright<small>폰·PC 화면 자동 캡처·점검</small></li><li>조준 봇 시뮬레이션<small>클리어율·아이템 기여</small></li></ul></div>
+        <div><h3>Plan</h3><ul><li>기획서(GDD)<small>레퍼런스 분석, 루프, 데이터 구조, KPI</small></li><li>4개 언어<small>사전·용어집</small></li><li>수익화·라이브 운영 설계<small>시즌 패스, 상점</small></li></ul></div>
+        <div><h3>AI</h3><ul><li>Claude Code<small>구현, 작업 규칙 파일</small></li><li>Codex<small>마일스톤마다 코드 리뷰</small></li><li>이미지 생성 AI · Python<small>아이콘·상징, 그림 맞춤 도구</small></li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="contact" aria-labelledby="ct-h">
+    <div class="wrap">
+      <p class="eyebrow">Contact</p>
+      <h2 class="big" id="ct-h" style="margin-top:14px">Let's<br>Pop <span>It</span></h2>
+      <p>AI로 빠르게 만들고, 결과는 숫자와 화면으로 끝까지 확인하는 개발자 김현준입니다. 읽어 주셔서 감사합니다.</p>
+      <dl class="contact-rows">
+        <div><dt>Email</dt><dd id="mail">khj476611@naver.com</dd><button class="copy" type="button" data-copy="mail">복사</button></div>
+        <div><dt>GitHub</dt><dd><a href="https://github.com/hyunjunstar" target="_blank" rel="noopener">github.com/hyunjunstar</a></dd></div>
+      </dl>
+      <div class="others">
+        <a class="btn" href="/portfolio1/">CrossWalk · Slime Party <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn" href="/portfolio2/">팡팡 구슬 던전 <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn" href="/portfolio3/">ProjectGuard <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn" href="/portfolio4/">LocaFlow <span class="arr" aria-hidden="true">→</span></a>
+      </div>
+      <div class="end-stripes" aria-hidden="true"></div>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap">© 2026 Kim Hyunjun. All rights reserved. 이 페이지의 글·이미지·코드는 무단 복제·배포·사용을 금지합니다.</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+(function () {
+  /* block right-click / drag on images */
+  document.addEventListener('contextmenu', function (e) { if (e.target.closest('img, .shot')) e.preventDefault(); });
+  document.addEventListener('dragstart', function (e) { if (e.target.tagName === 'IMG') e.preventDefault(); });
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- tiny code highlighter ---------- */
+  var KW = /\b(if|else|for|return|const|bool|true|false|float|auto|this|void|nullptr|let|function|export|constexpr|int32)\b/;
+  document.querySelectorAll('pre[data-hl]').forEach(function (pre) {
+    var src = pre.textContent;
+    var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    var re = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|\b(\d+(?:\.\d+)?f?)\b|\b([A-Z][A-Za-z0-9_]*::)|\b([A-Za-z_][A-Za-z0-9_]*)(?=\s*\()|\b(if|else|for|return|const|bool|true|false|float|auto|this|void|nullptr|let|function|export|constexpr|int32)\b/g;
+    var out = '', last = 0, m;
+    while ((m = re.exec(src))) {
+      out += esc(src.slice(last, m.index));
+      var cls = m[1] ? 'c' : m[2] ? 's' : m[3] ? 'n' : m[4] ? 't' : m[5] ? 'f' : 'k';
+      if (m[5] && KW.test(m[5])) cls = 'k';
+      out += '<span class="tk-' + cls + '">' + esc(m[0]) + '</span>';
+      last = re.lastIndex;
+    }
+    out += esc(src.slice(last));
+    pre.innerHTML = out.split('\n').map(function (l) { return '<span class="ln">' + (l || ' ') + '</span>'; }).join('');
+  });
+
+  /* ---------- tabs ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.log-tab'));
+  function select(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    if (focus) tab.focus();
+    var panel = document.getElementById(tab.getAttribute('aria-controls'));
+    if (window.gsap && !reduce) {
+      gsap.fromTo(panel.querySelectorAll('h4, .tags, .pfr > div, .code, .shot-inline'),
+        { y: 14, opacity: 0.25 }, { y: 0, opacity: 1, duration: .45, stagger: .05, ease: 'power2.out', overwrite: true });
+    }
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { select(t); });
+    t.addEventListener('keydown', function (e) {
+      var k = e.key, n = null;
+      if (k === 'ArrowDown' || k === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+      if (k === 'ArrowUp' || k === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+      if (k === 'Home') n = tabs[0];
+      if (k === 'End') n = tabs[tabs.length - 1];
+      if (n) { e.preventDefault(); select(n, true); }
+    });
+  });
+
+  /* ---------- copy buttons ---------- */
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var el = document.getElementById(b.getAttribute('data-copy'));
+      var text = el.textContent.trim();
+      var reset = function () { b.textContent = '복사'; };
+      var done = function () { b.textContent = '복사됨'; setTimeout(reset, 1600); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(el); var s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = '선택됨'; setTimeout(reset, 1600); };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+    });
+  });
+
+  /* ---------- progress (lane line) ---------- */
+  var lane = document.querySelector('.lane-progress'), bar = document.querySelector('.top-progress');
+  function onScroll() {
+    var h = document.documentElement.scrollHeight - innerHeight;
+    var p = h > 0 ? Math.min(1, Math.max(0, scrollY / h)) : 0;
+    lane.style.setProperty('--p', p.toFixed(4));
+    bar.style.setProperty('--p', p.toFixed(4));
+  }
+  addEventListener('scroll', onScroll, { passive: true }); addEventListener('resize', onScroll); onScroll();
+
+  /* ---------- nav current section ---------- */
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a.link'));
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        links.forEach(function (a) { a.setAttribute('aria-current', a.getAttribute('href') === '#' + en.target.id ? 'true' : 'false'); });
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    links.forEach(function (a) { var s = document.getElementById(a.getAttribute('href').slice(1)); if (s) io.observe(s); });
+  }
+
+  /* ---------- motion ---------- */
+  if (!window.gsap || reduce) return;
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.timeline({ defaults: { ease: 'power3.out' } })
+    .from('.hero h1 .line > span', { yPercent: 110, duration: .9, stagger: .1 }, .1)
+    .from('[data-hero]', { y: 18, opacity: 0.2, duration: .7, stagger: .08 }, .3);
+  gsap.utils.toArray('[data-reveal]').forEach(function (el) {
+    gsap.from(el, { y: 36, opacity: 0.25, duration: .9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%', once: true } });
+  });
+  gsap.utils.toArray('.station').forEach(function (el) {
+    gsap.fromTo(el, { borderTopColor: 'rgba(236,235,230,0)' }, { borderTopColor: 'rgba(236,235,230,1)', duration: .8, scrollTrigger: { trigger: el, start: 'top 90%', once: true } });
+  });
+  gsap.utils.toArray('[data-count]').forEach(function (el) {
+    var to = parseFloat(el.getAttribute('data-count')), from = parseFloat(el.getAttribute('data-from'));
+    var suffix = el.textContent.replace(/[0-9.]/g, '');
+    var o = { v: from };
+    gsap.to(o, { v: to, duration: 1.4, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 90%', once: true },
+      onStart: function () { el.textContent = from + suffix; },
+      onUpdate: function () { el.textContent = Math.round(o.v) + suffix; },
+      onComplete: function () { el.textContent = to + suffix; } });
+  });
+  var flow = document.querySelector('[data-flow]');
+  if (flow) {
+    var nodes = flow.querySelectorAll('.node'), packet = flow.querySelector('.packet'), pipe = flow.querySelector('.pipe i');
+    var tl = gsap.timeline({ repeat: -1, repeatDelay: .8, paused: true });
+    tl.set(pipe, { '--f': 0 });
+    nodes.forEach(function (n, i) {
+      var x = function () { return n.offsetLeft + n.offsetWidth / 2 - 8; };
+      tl.to(packet, { opacity: 1, left: x, duration: i === 0 ? .01 : .7, ease: 'power2.inOut' })
+        .to(pipe, { '--f': (i + 1) / nodes.length, duration: i === 0 ? .3 : .7, ease: 'power2.inOut' }, '<')
+        .add(function () { n.classList.add('is-on'); })
+        .to({}, { duration: .55 });
+    });
+    tl.to(packet, { opacity: 0, duration: .3 }).add(function () { nodes.forEach(function (n) { n.classList.remove('is-on'); }); }).to({}, { duration: .2 });
+    ScrollTrigger.create({ trigger: flow, start: 'top 85%', end: 'bottom 10%', onToggle: function (s) { s.isActive ? tl.play() : tl.pause(); } });
+  }
+  gsap.from('.end-stripes', { scaleX: 0, duration: 1.4, ease: 'power3.inOut', scrollTrigger: { trigger: '.end-stripes', start: 'top 95%', once: true } });
+})();
+
+</script>
+</body>
+</html>

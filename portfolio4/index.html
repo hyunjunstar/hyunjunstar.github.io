@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta property="og:title" content="LocaFlow · 김현준 포트폴리오">
+<meta property="og:description" content="Unreal Engine 현지화 QA·번역 플러그인 LocaFlow의 기획, 개발, Fab 심사 대응과 트러블슈팅 기록.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://hyunjunstar.github.io/portfolio4/assets/02_korean_particle_fixed.png">
+<style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head>
+<body>
+<title>LocaFlow · 김현준 포트폴리오</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Unreal Engine 현지화 QA·번역 플러그인 LocaFlow의 기획, 개발, Fab 심사 대응과 트러블슈팅 기록.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout concept: a road read top to bottom. Night asphalt ground, thermoplastic white
+   for structure, lane yellow for the one thing that moves (progress, the active state).
+   Sections are "stations" stencilled on the road; a lane line on the left fills as you scroll. */
+:root {
+  color-scheme: dark;
+  --asphalt: #14161a;        /* page ground: blue-biased charcoal, like wet night asphalt */
+  --asphalt-2: #1b1e23;      /* raised surfaces (cards, code) */
+  --asphalt-3: #252930;      /* borders, hairlines on surfaces */
+  --paint: #ecebe6;          /* thermoplastic road paint: warm off-white text */
+  --paint-dim: #a4a7ad;      /* secondary text, grey biased toward the asphalt hue */
+  --paint-faint: #6c717a;    /* captions, labels */
+  --lane: #f2b705;           /* lane yellow: the single accent */
+  --lane-ink: #1a1405;       /* text placed on lane yellow */
+  --stop: #ef6461;           /* semantic: problem */
+  --go: #4fc69a;             /* semantic: result */
+
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;  /* California highway-sign lineage */
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.5rem;
+  --step-3: clamp(1.75rem, 1.2rem + 2.2vw, 2.5rem);
+  --step-4: clamp(2.25rem, 1.4rem + 3.6vw, 3.75rem);
+  --step-5: clamp(3.5rem, 1.6rem + 8vw, 8.5rem);
+
+  --wrap: 1180px;
+  --radius: 6px;
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--asphalt);
+  color: var(--paint);
+  font-family: var(--f-body);
+  font-size: var(--step-0);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+/* asphalt grain */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .5;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+main, header, footer { position: relative; z-index: 1; }
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 2px solid var(--lane); outline-offset: 3px; border-radius: 2px; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; line-height: 1.25; }
+p { margin: 0; }
+.wrap {
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-left: var(--gutter-l);
+  padding-right: var(--gutter-r);
+}
+@media (min-width: 900px) {
+  .wrap { padding-left: max(72px, env(safe-area-inset-left, 0px)); padding-right: max(40px, env(safe-area-inset-right, 0px)); }
+}
+
+/* ---------- lane progress (left edge) ---------- */
+.lane-progress {
+  position: fixed;
+  left: calc(env(safe-area-inset-left, 0px) + 28px);
+  top: 0; bottom: 0;
+  width: 4px;
+  z-index: 5;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, var(--asphalt-3) 0 26px, transparent 26px 44px);
+}
+.lane-progress i {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(to bottom, var(--lane) 0 26px, transparent 26px 44px);
+  transform-origin: top;
+  transform: scaleY(var(--p, 0));
+}
+.top-progress { display: none; }
+@media (max-width: 899px) {
+  .lane-progress { display: none; }
+  .top-progress {
+    display: block; position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 30;
+    background: var(--lane); transform-origin: left; transform: scaleX(var(--p, 0));
+  }
+}
+
+/* ---------- nav ---------- */
+.nav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  background: color-mix(in srgb, var(--asphalt) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--asphalt-3);
+}
+.nav .wrap { display: flex; align-items: center; gap: 24px; min-height: 56px; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; letter-spacing: .04em; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.brand-mark { display: inline-grid; gap: 2px; width: 18px; }
+.brand-mark span { height: 3px; background: var(--paint); }
+.brand-mark span:first-child { background: var(--lane); }
+.nav ul { list-style: none; display: flex; gap: 22px; margin: 0 0 0 auto; padding: 0; }
+.nav a.link {
+  font-family: var(--f-display); font-weight: 600; letter-spacing: .12em; font-size: .9rem;
+  text-transform: uppercase; text-decoration: none; color: var(--paint-dim);
+  padding-block: 6px; position: relative;
+}
+.nav a.link::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--lane); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
+.nav a.link:hover, .nav a.link[aria-current="true"] { color: var(--paint); }
+.nav a.link:hover::after, .nav a.link[aria-current="true"]::after { transform: scaleX(1); }
+@media (max-width: 640px) { .nav ul { gap: 14px; } .nav a.link { font-size: .78rem; letter-spacing: .08em; } .nav .hide-sm { display: none; } }
+
+/* ---------- shared bits ---------- */
+.eyebrow {
+  font-family: var(--f-display); font-weight: 600; text-transform: uppercase;
+  letter-spacing: .22em; font-size: .85rem; color: var(--lane);
+}
+.mono { font-family: var(--f-mono); }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--step--1); line-height: 1.3;
+  padding: 5px 10px; border: 1px solid var(--asphalt-3); border-radius: 999px;
+  color: var(--paint-dim); background: var(--asphalt-2);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--f-display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  font-size: .95rem; text-decoration: none; cursor: pointer;
+  padding: 11px 18px; border-radius: var(--radius); border: 1px solid var(--paint-faint);
+  background: transparent; color: var(--paint);
+  transition: background .25s, color .25s, border-color .25s, transform .25s;
+}
+.btn:hover { border-color: var(--paint); transform: translateY(-2px); }
+.btn.primary { background: var(--lane); border-color: var(--lane); color: var(--lane-ink); }
+.btn.primary:hover { background: #ffc61a; }
+.btn svg { width: 16px; height: 16px; flex: none; }
+.btn .arr { transition: transform .25s; }
+.btn:hover .arr { transform: translateX(3px); }
+
+section { padding-block: clamp(72px, 10vw, 140px); }
+.station {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  border-top: 2px solid var(--paint);
+  padding-top: 18px; margin-bottom: clamp(32px, 5vw, 56px);
+}
+.station .num {
+  font-family: var(--f-display); font-weight: 800; font-size: var(--step-2);
+  color: var(--asphalt); background: var(--paint); padding: 0 10px; line-height: 1.3;
+}
+.station h2 { font-family: var(--f-display); font-weight: 700; font-size: var(--step-4); text-transform: uppercase; letter-spacing: .01em; line-height: 1; }
+.station .sub { color: var(--paint-dim); margin-left: auto; font-size: var(--step--1); }
+
+/* ---------- hero ---------- */
+.hero { padding-block: clamp(48px, 7vw, 96px) clamp(56px, 8vw, 110px); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); align-items: center; }
+@media (max-width: 899px) { .hero .wrap { grid-template-columns: 1fr; } }
+.hero h1 {
+  font-family: var(--f-display); font-weight: 800; text-transform: uppercase;
+  font-size: var(--step-5); line-height: .88; letter-spacing: -.005em;
+  margin-top: 18px;
+}
+.hero h1 .line { display: block; overflow: hidden; padding-bottom: .04em; }
+.hero h1 .line > span { display: inline-block; }
+.hero h1 .accent { color: var(--lane); }
+.thesis { margin-top: 26px; font-size: var(--step-2); font-weight: 600; line-height: 1.45; max-width: 26ch; }
+.thesis em { font-style: normal; color: var(--lane); }
+.hero .lead { margin-top: 16px; color: var(--paint-dim); max-width: 52ch; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 40px; background: var(--asphalt-3); border: 1px solid var(--asphalt-3); }
+.facts div { background: var(--asphalt); padding: 14px 16px; }
+.facts b { display: block; font-family: var(--f-display); font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.facts span { font-size: var(--step--1); color: var(--paint-faint); }
+@media (max-width: 560px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* the crossing */
+.crossing {
+  position: relative; aspect-ratio: 5 / 6; max-width: 100%;
+  border-radius: var(--radius); overflow: hidden;
+  background:
+    radial-gradient(120% 70% at 50% 120%, #0d0f12 0%, transparent 60%),
+    linear-gradient(180deg, #191c21, #121418);
+  border: 1px solid var(--asphalt-3);
+  isolation: isolate;
+}
+.crossing .kerb { position: absolute; left: 0; right: 0; height: 10px; background: repeating-linear-gradient(90deg, #2b2f36 0 40px, #23262c 40px 80px); }
+.crossing .kerb.t { top: 0; } .crossing .kerb.b { bottom: 0; }
+.crossing .edge { position: absolute; top: 10%; bottom: 10%; width: 3px; background: var(--paint); opacity: .85; }
+.crossing .edge.l { left: 9%; } .crossing .edge.r { right: 9%; }
+.crossing .stripes { position: absolute; left: 14%; right: 14%; top: 13%; bottom: 13%; display: grid; grid-template-rows: repeat(6, 1fr); gap: 5.5%; }
+.crossing .stripe {
+  background: var(--paint);
+  transform-origin: left center;
+  -webkit-mask: var(--worn) center/180px 180px, linear-gradient(#000, #000);
+  -webkit-mask-composite: source-in;
+  mask: var(--worn) center/180px 180px;
+  --worn: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 2.15'/></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>");
+}
+.crossing .stripe:first-child { background: var(--lane); }
+.crossing .roller {
+  position: absolute; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--lane); box-shadow: 0 0 0 6px color-mix(in srgb, var(--lane) 25%, transparent);
+  left: 14%; top: 13%; opacity: 0;
+}
+.crossing .sweep {
+  position: absolute; inset: -20% -60%; z-index: 2; pointer-events: none;
+  background: radial-gradient(30% 40% at 50% 50%, rgba(255, 240, 200, .16), transparent 70%);
+  transform: translateX(-70%); mix-blend-mode: screen;
+}
+.crossing .tag {
+  position: absolute; left: 14%; bottom: 3.5%; z-index: 3;
+  font-family: var(--f-mono); font-size: .7rem; letter-spacing: .14em; color: var(--paint-faint);
+}
+.crossing .tag b { color: var(--lane); font-weight: 500; }
+
+/* ---------- at a glance ---------- */
+.glance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 899px) { .glance-grid { grid-template-columns: 1fr; } }
+.metric {
+  background: var(--asphalt-2); border: 1px solid var(--asphalt-3); border-radius: var(--radius);
+  padding: 22px 22px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.metric .vals { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: var(--f-display); font-weight: 700; }
+.metric .before { font-size: 1.6rem; color: var(--paint-faint); text-decoration: line-through; text-decoration-color: var(--stop); text-decoration-thickness: 2px; }
+.metric .to { color: var(--paint-faint); font-size: 1.2rem; }
+.metric .after { font-size: 3rem; line-height: 1; color: var(--lane); font-variant-numeric: tabular-nums; }
+.metric .unit { font-size: 1.2rem; color: var(--paint-dim); margin-left: -6px; }
+.metric h3 { font-size: var(--step-0); font-weight: 600; }
+.metric p { color: var(--paint-dim); font-size: var(--step--1); line-height: 1.6; }
+.metric .src { margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--asphalt-3); font-family: var(--f-mono); font-size: .72rem; color: var(--paint-faint); letter-spacing: .04em; }
+
+/* ---------- project intro ---------- */
+.proj-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+@media (max-width: 899px) { .proj-head { grid-template-columns: 1fr; } }
+.proj-title { font-family: var(--f-display); font-weight: 800; font-size: var(--step-5); line-height: .9; text-transform: uppercase; }
+.proj-desc { margin-top: 18px; color: var(--paint-dim); max-width: 56ch; }
+.proj-meta { margin-top: 24px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 20px; font-size: var(--step--1); }
+.proj-meta dt { color: var(--paint-faint); font-family: var(--f-display); letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+.proj-meta dd { margin: 0; }
+.proj-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+.shot { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--asphalt-3); background: var(--asphalt-2); }
+.shot img { width: 100%; height: auto; transform: scale(1.06); }
+.shot figcaption { position: absolute; left: 12px; bottom: 10px; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .1em; color: var(--paint); background: rgba(10, 11, 13, .7); padding: 4px 8px; border-radius: 3px; }
+.shot-pair { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; }
+.shot-pair .shot img { aspect-ratio: 16 / 10; object-fit: cover; }
+@media (max-width: 560px) { .shot-pair { grid-template-columns: 1fr; } }
+
+.role { margin-top: clamp(40px, 6vw, 64px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-block: 1px solid var(--asphalt-3); }
+.role li { list-style: none; padding: 18px 20px 18px 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.role li + li { padding-left: 20px; border-left: 1px solid var(--asphalt-3); }
+.role b { font-family: var(--f-display); font-size: 1rem; letter-spacing: .14em; color: var(--lane); text-transform: uppercase; font-weight: 600; }
+.role span { font-weight: 600; line-height: 1.45; }
+.role ul { padding: 0; margin: 0; display: contents; }
+@media (max-width: 899px) { .role { grid-template-columns: repeat(2, minmax(0, 1fr)); } .role li:nth-child(3) { padding-left: 0; border-left: 0; } .role li:nth-child(n+3) { border-top: 1px solid var(--asphalt-3); } }
+@media (max-width: 480px) { .role { grid-template-columns: 1fr; } .role li, .role li + li { padding-left: 0; border-left: 0; } .role li + li { border-top: 1px solid var(--asphalt-3); } }
+
+.sub-h { display: flex; align-items: baseline; gap: 14px; margin: clamp(56px, 8vw, 96px) 0 24px; flex-wrap: wrap; }
+.sub-h h3 { font-size: var(--step-3); font-weight: 700; }
+.sub-h .eyebrow { font-size: .8rem; }
+.sub-h p { color: var(--paint-dim); flex-basis: 100%; max-width: 70ch; }
+
+/* ---------- server-authority flow ---------- */
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; position: relative; }
+.flow .node {
+  position: relative; padding: 20px; border: 1px solid var(--asphalt-3); background: var(--asphalt-2);
+  min-height: 150px; display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  transition: border-color .35s, background .35s;
+}
+.flow .node + .node { border-left: 0; }
+.flow .node .k { font-family: var(--f-mono); font-size: .72rem; letter-spacing: .1em; color: var(--paint-faint); }
+.flow .node h4 { font-size: var(--step-1); font-weight: 700; }
+.flow .node p { font-size: var(--step--1); color: var(--paint-dim); line-height: 1.55; }
+.flow .node.server { background: #20232a; }
+.flow .node.server .k::after { content: " · HOST"; color: var(--lane); }
+.flow .node.is-on { border-color: var(--lane); background: color-mix(in srgb, var(--lane) 9%, var(--asphalt-2)); }
+.flow .node.is-on h4 { color: var(--lane); }
+.flow .pipe { position: absolute; left: 0; right: 0; top: -14px; height: 4px; background: repeating-linear-gradient(90deg, var(--asphalt-3) 0 16px, transparent 16px 26px); }
+.flow .pipe i { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--lane) 0 16px, transparent 16px 26px); transform-origin: left; transform: scaleX(var(--f, 1)); }
+.flow .packet { position: absolute; top: -20px; left: 0; width: 16px; height: 16px; border-radius: 3px; background: var(--lane); box-shadow: 0 0 18px color-mix(in srgb, var(--lane) 60%, transparent); opacity: 0; }
+@media (max-width: 899px) {
+  .flow { grid-template-columns: 1fr 1fr; }
+  .flow .node:nth-child(odd of .node) { border-left: 1px solid var(--asphalt-3); }
+  .flow .node:nth-child(n+3 of .node) { border-top: 0; }
+  .flow .pipe, .flow .packet { display: none; }
+}
+@media (max-width: 480px) { .flow { grid-template-columns: 1fr; } .flow .node { border-left: 1px solid var(--asphalt-3) !important; } .flow .node + .node { border-top: 0; } }
+.holders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.holders div { border: 1px dashed var(--asphalt-3); border-radius: var(--radius); padding: 14px 16px; min-width: 0; }
+.holders b { font-family: var(--f-mono); font-size: .82rem; color: var(--paint); font-weight: 500; }
+.holders span { display: block; color: var(--paint-faint); font-size: var(--step--1); }
+@media (max-width: 640px) { .holders { grid-template-columns: 1fr; } }
+
+/* ---------- decision ---------- */
+.decision { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); align-items: start; }
+@media (max-width: 899px) { .decision { grid-template-columns: 1fr; } }
+.opts { display: grid; gap: 10px; }
+.opt { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 14px; padding: 16px 18px; border: 1px solid var(--asphalt-3); border-radius: var(--radius); background: var(--asphalt-2); }
+.opt .letter { grid-row: span 2; font-family: var(--f-display); font-weight: 800; font-size: 1.9rem; line-height: 1; color: var(--paint-faint); }
+.opt h4 { font-size: var(--step-0); font-weight: 600; }
+.opt p { font-size: var(--step--1); color: var(--paint-dim); }
+.opt.no p::before { content: "✕ "; color: var(--stop); }
+.opt.yes { border-color: var(--lane); }
+.opt.yes .letter { color: var(--lane); }
+.opt.yes p::before { content: "✓ "; color: var(--go); }
+.opt.proof { background: var(--lane); border-color: var(--lane); color: var(--lane-ink); }
+.opt.proof .letter, .opt.proof p { color: var(--lane-ink); }
+
+/* ---------- incident log (tabs) ---------- */
+.log { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 0; border: 1px solid var(--asphalt-3); border-radius: var(--radius); overflow: hidden; background: var(--asphalt-2); }
+@media (max-width: 899px) { .log { grid-template-columns: 1fr; } }
+.log-list { list-style: none; margin: 0; padding: 0; border-right: 1px solid var(--asphalt-3); display: flex; flex-direction: column; }
+@media (max-width: 899px) { .log-list { border-right: 0; border-bottom: 1px solid var(--asphalt-3); flex-direction: row; overflow-x: auto; scrollbar-width: thin; } }
+.log-tab {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 2px 10px;
+  padding: 16px 18px; border-bottom: 1px solid var(--asphalt-3); position: relative;
+  transition: background .25s;
+}
+@media (max-width: 899px) { .log-tab { width: 230px; flex: none; border-bottom: 0; border-right: 1px solid var(--asphalt-3); } }
+.log-tab:hover { background: #20242a; }
+.log-tab .id { grid-row: span 2; font-family: var(--f-mono); font-size: .78rem; color: var(--paint-faint); padding-top: 2px; }
+.log-tab .t { font-weight: 600; font-size: .95rem; line-height: 1.4; }
+.log-tab .m { font-family: var(--f-mono); font-size: .72rem; color: var(--paint-faint); }
+.log-tab::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--lane); transform: scaleY(0); transition: transform .3s; }
+.log-tab[aria-selected="true"] { background: #22262d; }
+.log-tab[aria-selected="true"] .id, .log-tab[aria-selected="true"] .m { color: var(--lane); }
+.log-tab[aria-selected="true"]::before { transform: scaleY(1); }
+.log-tab:focus-visible { outline: 2px solid var(--lane); outline-offset: -2px; }
+.panel { padding: clamp(20px, 3vw, 36px); min-width: 0; }
+.panel h4 { font-size: var(--step-2); font-weight: 700; }
+.panel .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.panel .tags .chip.hot { border-color: var(--lane); color: var(--lane); background: color-mix(in srgb, var(--lane) 8%, transparent); }
+.pfr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }
+@media (max-width: 1100px) { .pfr { grid-template-columns: 1fr; gap: 14px; } }
+.pfr > div { min-width: 0; }
+.pfr b { display: inline-block; font-family: var(--f-display); font-weight: 700; letter-spacing: .16em; font-size: .82rem; text-transform: uppercase; margin-bottom: 6px; }
+.pfr .p b { color: var(--stop); } .pfr .f b { color: var(--lane); } .pfr .r b { color: var(--go); }
+.pfr p { font-size: .94rem; color: var(--paint-dim); line-height: 1.7; }
+.pfr p strong { color: var(--paint); font-weight: 600; }
+.panel .foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 22px; }
+.classes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.classes code { font-family: var(--f-mono); font-size: .78rem; padding: 4px 8px; border-radius: 4px; background: #101215; border: 1px solid var(--asphalt-3); color: #c7d0dc; }
+
+/* code block */
+.code { margin-top: 22px; border-radius: var(--radius); background: #0f1114; border: 1px solid var(--asphalt-3); overflow: hidden; }
+.code .bar { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--asphalt-3); font-family: var(--f-mono); font-size: .74rem; color: var(--paint-faint); }
+.code .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--asphalt-3); }
+.code .bar i:first-child { background: var(--lane); }
+.code pre { margin: 0; padding: 16px 18px; overflow-x: auto; font-family: var(--f-mono); font-size: .8rem; line-height: 1.7; color: #d5dbe3; tab-size: 4; }
+.code .ln { display: block; }
+.tk-c { color: #6b7684; font-style: italic; }
+.tk-k { color: #c99cf2; }
+.tk-s { color: #9fd38a; }
+.tk-n { color: #f2b705; }
+.tk-f { color: #7fc4f5; }
+.tk-t { color: #f0c27a; }
+
+/* learnings */
+.rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--asphalt-3); }
+@media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
+.rules li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 20px 20px 20px 0; border-bottom: 1px solid var(--asphalt-3); }
+.rules li:nth-child(even) { padding-left: 20px; border-left: 1px solid var(--asphalt-3); }
+@media (max-width: 760px) { .rules li:nth-child(even) { padding-left: 0; border-left: 0; } }
+.rules .k { font-family: var(--f-display); font-weight: 800; font-size: 1.5rem; color: var(--lane); line-height: 1.2; }
+.rules p { font-weight: 500; line-height: 1.6; }
+
+/* slime party architecture */
+.arch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .arch { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .arch { grid-template-columns: 1fr; } }
+.box { border: 1px solid var(--asphalt-3); border-radius: var(--radius); padding: 16px; background: var(--asphalt); min-width: 0; position: relative; }
+.box .cls { font-family: var(--f-mono); font-size: .72rem; color: var(--paint-faint); overflow-wrap: anywhere; }
+.box h4 { font-size: var(--step-1); font-weight: 700; margin-top: 4px; }
+.box p { font-size: var(--step--1); color: var(--paint-dim); margin-top: 4px; }
+.box.mine { border-color: var(--lane); background: color-mix(in srgb, var(--lane) 6%, var(--asphalt-2)); }
+.box.mine::after { content: "담당"; position: absolute; top: 12px; right: 12px; font-size: .7rem; font-weight: 700; color: var(--lane-ink); background: var(--lane); padding: 1px 7px; border-radius: 3px; }
+.legend { display: flex; gap: 18px; margin-top: 14px; font-size: var(--step--1); color: var(--paint-faint); flex-wrap: wrap; }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--asphalt-3); }
+.legend .m::before { border-color: var(--lane); background: color-mix(in srgb, var(--lane) 25%, transparent); }
+
+.features { display: grid; gap: 16px; }
+.feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(18px, 3vw, 36px); padding: clamp(20px, 3vw, 32px); border: 1px solid var(--asphalt-3); border-radius: var(--radius); background: var(--asphalt-2); }
+@media (max-width: 899px) { .feature { grid-template-columns: 1fr; } }
+.feature > div { min-width: 0; }
+.feature h4 { font-size: var(--step-2); font-weight: 700; }
+.feature .code { margin-top: 0; }
+
+/* text rpg */
+.mini { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 56px); align-items: start; }
+@media (max-width: 899px) { .mini { grid-template-columns: 1fr; } }
+.ratio { display: grid; gap: 14px; }
+.bar-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 64px; gap: 12px; align-items: center; font-size: var(--step--1); }
+.bar-row .track { height: 12px; background: var(--asphalt-3); border-radius: 2px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: var(--paint-faint); transform-origin: left; }
+.bar-row.now .fill { background: var(--lane); }
+.bar-row b { font-family: var(--f-display); font-size: 1.15rem; text-align: right; }
+
+/* skills */
+.skills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--paint); }
+@media (max-width: 899px) { .skills { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .skills { grid-template-columns: 1fr; } }
+.skills > div { padding: 22px 20px 22px 0; min-width: 0; }
+.skills > div + div { padding-left: 20px; border-left: 1px solid var(--asphalt-3); }
+@media (max-width: 899px) { .skills > div:nth-child(3) { padding-left: 0; border-left: 0; } }
+@media (max-width: 480px) { .skills > div, .skills > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--asphalt-3); } }
+.skills h3 { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .16em; font-size: .95rem; font-weight: 700; color: var(--lane); }
+.skills ul { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
+.skills li { font-size: .95rem; }
+.skills li small { display: block; color: var(--paint-faint); font-size: .78rem; line-height: 1.5; }
+
+.timeline { margin-top: 40px; display: grid; gap: 0; border-top: 1px solid var(--asphalt-3); }
+.timeline div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--asphalt-3); font-size: .95rem; }
+.timeline span { font-family: var(--f-mono); font-size: .8rem; color: var(--paint-faint); padding-top: 3px; }
+.timeline small { color: var(--paint-dim); }
+@media (max-width: 560px) { .timeline div { grid-template-columns: 1fr; gap: 2px; } }
+
+/* contact */
+.contact { padding-block: clamp(80px, 12vw, 160px) clamp(48px, 6vw, 72px); text-align: left; }
+.contact .big { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: var(--step-5); line-height: .9; }
+.contact .big span { color: var(--lane); }
+.contact p { margin-top: 18px; color: var(--paint-dim); max-width: 50ch; }
+.contact-rows { margin-top: 36px; display: grid; gap: 0; border-top: 1px solid var(--asphalt-3); max-width: 720px; }
+.contact-rows div { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--asphalt-3); flex-wrap: wrap; }
+.contact-rows dt { width: 90px; font-family: var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--paint-faint); font-weight: 600; font-size: .85rem; }
+.contact-rows dd { margin: 0; font-family: var(--f-mono); font-size: 1rem; user-select: all; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.copy { all: unset; cursor: pointer; font-family: var(--f-display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: .8rem; color: var(--lane); padding: 4px 8px; border-radius: 4px; }
+.copy:hover { background: color-mix(in srgb, var(--lane) 12%, transparent); }
+.copy:focus-visible { outline: 2px solid var(--lane); }
+.end-stripes { margin-top: 70px; height: 54px; background: repeating-linear-gradient(90deg, var(--paint) 0 46px, transparent 46px 92px); opacity: .9; transform-origin: left; }
+footer { padding-block: 22px 40px; color: var(--paint-faint); font-size: .78rem; }
+
+/* discourage saving images */
+img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; pointer-events: none; }
+.shot { -webkit-touch-callout: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+<style>
+/* portfolio2-4 additions */
+.hero-shot { margin: 0; align-self: center; justify-self: center; width: 100%; }
+.hero-shot.phone { max-width: 340px; }
+.hero-shot img { transform: none; }
+.hero-shot.phone img { aspect-ratio: 9 / 19.5; object-fit: cover; object-position: top; }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.trio .shot img { transform: none; aspect-ratio: 9 / 19.5; object-fit: cover; object-position: top; }
+.ba { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.ba .shot img { transform: none; }
+.panel .shot-inline { margin: 18px 0 0; max-width: 720px; }
+.panel .shot-inline img { transform: none; }
+.rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rules > div { background: var(--asphalt-2); border: 1px solid var(--asphalt-3); border-radius: var(--radius); padding: 18px 20px; }
+.rules b { display: block; font-family: var(--f-display); letter-spacing: .06em; font-size: 1.05rem; color: var(--lane); margin-bottom: 6px; }
+.rules p { color: var(--paint-dim); font-size: var(--step--1); line-height: 1.6; }
+.others { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.proj-title { word-break: keep-all; font-size: clamp(2.75rem, 1.2rem + 4.6vw, 5.75rem) !important; }
+.thesis, .lead, .proj-desc, .pfr p, .sub-h p, .metric p { word-break: keep-all; }
+.ba { max-width: 460px; }
+.shot-pair.full { grid-template-columns: 1fr; align-content: start; }
+.shot-pair.full .shot img { aspect-ratio: auto; object-fit: contain; transform: none; }
+.status { margin-top: 18px; font-size: var(--step--1); color: var(--paint-faint); border-left: 3px solid var(--asphalt-3); padding-left: 12px; }
+@media (max-width: 760px) { .rules, .ba { grid-template-columns: 1fr; } .trio { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
+</style>
+
+<div class="lane-progress" aria-hidden="true"><i></i></div>
+<div class="top-progress" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="맨 위로"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>KIM HYUNJUN</a>
+    <ul>
+      <li><a class="link" href="#plan">기획</a></li>
+      <li><a class="link" href="#dev">개발</a></li>
+      <li><a class="link" href="#trouble">트러블슈팅</a></li>
+      <li class="hide-sm"><a class="link" href="#contact">Contact</a></li>
+    </ul>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow" data-hero>Unreal Engine Plugin · Localization QA · Fab 제출</p>
+        <h1 aria-label="LocaFlow">
+          <span class="line"><span>Loca</span></span>
+          <span class="line"><span>Fl<span class="accent">ow</span></span></span>
+        </h1>
+        <p class="thesis" data-hero>번역 실패를 <em>성공</em>으로 보이게 두지 않고,<br>엔진 동작은 <em>소스</em>로 확인합니다.</p>
+        <p class="lead" data-hero>Unreal Engine의 Localization Dashboard를 쓰는 개발자를 위해, 번역 문장의 오류를 찾아 고치고 DeepL·OpenAI 호환 API로 번역까지 돕는 에디터 플러그인입니다. 엔진 동작은 엔진 소스의 파일과 줄 번호로 확인했고, Fab 기술 심사 지적을 고쳐 다시 제출했습니다.</p>
+        <div class="hero-actions" data-hero>
+          <a class="btn primary" href="https://github.com/hyunjunstar/LocaFlow-Docs" target="_blank" rel="noopener">사용자 문서 <span class="arr" aria-hidden="true">↗</span></a>
+          <a class="btn" href="#trouble">트러블슈팅 보기 <span class="arr" aria-hidden="true">→</span></a>
+        </div>
+        <div class="facts" data-hero>
+          <div><b>UE 5.8</b><span>C++ 모듈 5개 · 5.5 지원</span></div>
+          <div><b>10/10</b><span>자동 테스트 (두 버전)</span></div>
+          <div><b>9/9</b><span>실제 흐름 테스트</span></div>
+          <div><b>DeepL</b><span>OpenAI 호환 번역</span></div>
+        </div>
+      </div>
+      <figure class="shot hero-shot" data-hero><img src="assets/02_korean_particle_fixed.png" alt="LocaFlow 대시보드: 언어별 완성도, 번역 표, QA 이슈 목록" loading="lazy"></figure>
+    </div>
+  </section>
+
+  <section class="glance" aria-labelledby="glance-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">00</span><h2 id="glance-h">1분 요약</h2><span class="sub">직접 해결한 문제를 숫자로 먼저 보여드립니다</span></div>
+      <div class="glance-grid">
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="before">2</span><span class="to">→</span><span class="after" data-count="0" data-from="2">0</span><span class="unit">건</span></div>
+          <h3>Fab 기술 심사 Fail</h3>
+          <p>신고한 플랫폼(Win64)과 모듈 설정이 달랐던 것, 저작권 표기 누락을 고쳐 다시 제출했습니다.</p>
+          <span class="src">FAB TRC · 2026.10.15</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">53/53</span><span class="unit"></span></div>
+          <h3>저작권 표기를 맞춘 소스 파일</h3>
+          <p>심사 기준에 맞춰 모든 소스 파일 머리말을 같은 형식으로 통일했습니다.</p>
+          <span class="src">SOURCE · Copyright</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">403</span><span class="unit"></span></div>
+          <h3>잘못된 키로 실제 API 호출</h3>
+          <p>실서비스 DeepL에 잘못된 키를 넣어도 작업이 중단되고 기존 번역이 그대로 보존되는 것을 확인했습니다.</p>
+          <span class="src">TRANSLATE · 회귀 테스트</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">0</span><span class="unit">건</span></div>
+          <h3>실패를 "번역됨"으로 표시</h3>
+          <p>번역 작업 끝에 대상 전체를 번역됨으로 바꾸던 것을, 실제로 바뀐 항목만 집계하게 고쳤습니다.</p>
+          <span class="src">TRANSLATE · 출시 전 리뷰 P1</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">60</span><span class="unit">개</span></div>
+          <h3>ZIP 항목 · 역슬래시 0</h3>
+          <p>Windows 압축 도구가 만든 역슬래시 경로를 슬래시로 다시 압축하고, 다른 OS 방식으로 풀어 다시 빌드했습니다.</p>
+          <span class="src">RELEASE · ZIP</span>
+        </article>
+        <article class="metric" data-reveal>
+          <div class="vals"><span class="after">10/10</span><span class="unit"></span></div>
+          <h3>두 엔진 버전 자동 테스트</h3>
+          <p>수정할 때마다 5.5.4·5.8.3에서 빌드 → 자동 테스트 → 실제 흐름 테스트를 다시 돌렸습니다.</p>
+          <span class="src">TEST · 5.5.4 · 5.8.3</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="plan" aria-labelledby="plan-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">01</span><h2 id="plan-h">Planning</h2><span class="sub">2026.10.12 – 10.15 · 1인</span></div>
+      <div class="proj-head">
+        <div data-reveal>
+          <p class="eyebrow">현지화 QA · 한국어 조사 · 폰트 · 번역</p>
+          <h3 class="proj-title" style="margin-top:12px">LocaFlow</h3>
+          <p class="proj-desc">현지화 작업에서 반복되는 실수(인자 누락, 태그 불일치, 빈 번역, 원문이 바뀐 번역)를 자동으로 찾고, 한국어 조사 "을(를)"을 엔진 문법 <code>|hpp(을,를)</code>로 한 번에 바꾸며, 폰트가 그리지 못하는 글자와 위젯 넘침까지 언어별로 보여 주는 도구입니다. 번역 API는 사용자가 자기 키를 넣는 방식으로, 비용 추정과 작업당 상한을 두었습니다.</p>
+          <dl class="proj-meta">
+            <dt>엔진</dt><dd>Unreal Engine 5.5 · 5.8, Win64</dd>
+            <dt>모듈</dt><dd>Core · Translate · QA · Editor · Runtime</dd>
+            <dt>번역</dt><dd>DeepL · OpenAI 호환 API, 플레이스홀더·태그 보호, 용어집</dd>
+            <dt>입출력</dt><dd>CSV · PO 내보내기·가져오기, .bak 백업 저장</dd>
+          </dl>
+          <div class="proj-actions"><a class="btn" href="https://github.com/hyunjunstar/LocaFlow-Docs" target="_blank" rel="noopener">사용자 문서 <span class="arr" aria-hidden="true">↗</span></a>
+            <a class="btn" href="https://github.com/hyunjunstar/troubleshooting-portfolio/tree/main/locaflow" target="_blank" rel="noopener">문제 해결 기록 <span class="arr" aria-hidden="true">↗</span></a></div>
+        </div>
+        <div class="shot-pair full" data-reveal>
+          <figure class="shot" style="margin:0"><img src="assets/01_dashboard_qa.png" alt="QA 이슈 대시보드" loading="lazy"><figcaption>QA DASHBOARD</figcaption></figure>
+          <figure class="shot" style="margin:0"><img src="assets/03_font_wizard.png" alt="폰트 마법사: 그리지 못하는 글자와 대체 폰트" loading="lazy"><figcaption>FONT WIZARD</figcaption></figure>
+        </div>
+      </div>
+      <ul class="role" data-reveal>
+        <li><b>Plan</b><span>현지화 반복 실수 정리, 기능 범위·가격 결정</span></li>
+        <li><b>Build</b><span>QA 검사기, 번역 연동, 폰트·넘침 검사, 대시보드</span></li>
+        <li><b>Verify</b><span>엔진 소스 대조, 두 버전 빌드·테스트, 패키징 게임 확인</span></li>
+        <li><b>Ship</b><span>Fab 제출·심사 대응, 공개 사용자 문서</span></li>
+      </ul>
+      <div class="sub-h" data-reveal>
+        <span class="eyebrow">Decision</span>
+        <h3>사람이 고친 번역은 엔진 파일 밖에 기록</h3>
+        <p>사람이 직접 고친 번역에 표시를 남겨야 했는데, 엔진이 번역 파일을 다시 저장하면 표시가 사라졌습니다. 엔진 소스를 확인하고 저장 위치를 바꿨습니다.</p>
+      </div>
+      <div class="decision">
+        <div class="opts" data-reveal>
+          <div class="opt no"><span class="letter">A</span><h4>엔진 번역 파일 메타데이터</h4><p>UE 5.8 저장 로직이 일부 메타데이터만 다시 써서 사라짐</p></div>
+          <div class="opt no"><span class="letter">B</span><h4>사람 편집을 따로 표시하지 않음</h4><p>자동 번역이 사람이 고친 문장을 덮어쓸 위험</p></div>
+          <div class="opt yes"><span class="letter">C</span><h4>별도 파일 · 채택</h4><p>&lt;언어&gt;/&lt;대상&gt;.locaflow.json에 따로 기록</p></div>
+          <div class="opt proof"><span class="letter">✓</span><h4>실제 텍스트 수집 후 유지</h4><p>UE 5.5·5.8 모두 Gather 뒤에도 표시 유지</p></div>
+        </div>
+        <figure class="shot" data-reveal style="margin:0"><img src="assets/03_font_wizard.png" alt="폰트 마법사 화면" loading="lazy"><figcaption>FONT WIZARD</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="dev" aria-labelledby="dev-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">02</span><h2 id="dev-h">Development</h2><span class="sub">Claude 구현 · Codex·정적 리뷰 · 엔진 소스 대조</span></div>
+      <div class="sub-h" data-reveal>
+        <span class="eyebrow">Architecture</span>
+        <h3>검사·번역·화면을 모듈로 나누고, 실행은 에디터 안에서</h3>
+        <p>검사 규칙(QA)과 번역(Translate)을 분리해, 번역 API가 실패해도 검사와 편집은 그대로 쓸 수 있게 했습니다. 게임 안 언어 메뉴용 기능만 Runtime 모듈에 두었습니다.</p>
+      </div>
+      <div class="flow" data-flow>
+        <div class="pipe" aria-hidden="true"><i></i></div>
+        <div class="packet" aria-hidden="true"></div>
+        <div class="node"><span class="k">CORE</span><h4>번역 파일 읽기·쓰기</h4><p>아카이브·CSV·PO, 사람 편집 별도 기록</p></div>
+        <div class="node"><span class="k">QA</span><h4>자동 검사</h4><p>인자·복수형·태그·빈 번역·원문 변경</p></div>
+        <div class="node"><span class="k">TRANSLATE</span><h4>번역 API</h4><p>태그 보호, 비용 상한, 재시도, 실패 집계</p></div>
+        <div class="node"><span class="k">EDITOR</span><h4>대시보드</h4><p>인라인 편집, 폰트 마법사, 넘침 미리보기</p></div>
+      </div>
+      <div class="holders" data-reveal>
+        <div><b>RUNTIME</b><span>게임 내 언어 메뉴 Blueprint 노드</span></div>
+        <div><b>SMOKE TEST</b><span>setup · gather · logic · compile · ui</span></div>
+        <div><b>SHIP CHECK</b><span>패키징 게임 ko → de → ko 전환</span></div>
+      </div>
+      <div class="sub-h" data-reveal>
+        <span class="eyebrow">AI Workflow</span>
+        <h3>지난 로그로 검증을 대신하지 않습니다</h3>
+        <p>AI가 "고쳤다"고 해도, 수정할 때마다 두 엔진 버전에서 처음부터 다시 빌드하고 테스트했습니다.</p>
+      </div>
+      <div class="rules" data-reveal>
+        <div><b>엔진 동작은 엔진 소스로</b><p>AI 설명을 그대로 믿지 않고, 설치된 엔진 소스의 파일명과 줄 번호를 근거로 남겼습니다.</p></div>
+        <div><b>수정마다 처음부터 다시</b><p>빌드 → 자동 테스트 → 실제 흐름 테스트를 두 버전에서 반복했습니다.</p></div>
+        <div><b>사람 할 일과 AI 할 일 분리</b><p>작업 목록을 "직접 해야 함 / Claude가 할 수 있음"으로 나누고, 금융 정보는 사람이 직접 입력했습니다.</p></div>
+        <div><b>미검증은 미검증으로</b><p>OpenAI 성공 경로는 계정 크레딧 부족으로 확인하지 못했다고 문서에 그대로 남겼습니다.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="trouble" aria-labelledby="tr-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">03</span><h2 id="tr-h">Troubleshooting</h2><span class="sub">문제 → 원인·해결 → 결과</span></div>
+      <div class="log" data-reveal>
+        <ul class="log-list" role="tablist" aria-label="LocaFlow 트러블슈팅 목록">
+          <li><button class="log-tab" role="tab" id="tab-1" aria-controls="case-1" aria-selected="true"><span class="id">#01</span><span class="t">Fab 기술 심사 Fail 2건</span><span class="m">플랫폼 설정 · 저작권</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-2" aria-controls="case-2" aria-selected="false" tabindex="-1"><span class="id">#02</span><span class="t">실패했는데 "번역됨"</span><span class="m">출시 전 리뷰 P1</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-3" aria-controls="case-3" aria-selected="false" tabindex="-1"><span class="id">#03</span><span class="t">사람 편집 표시가 사라짐</span><span class="m">엔진 저장 로직</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-4" aria-controls="case-4" aria-selected="false" tabindex="-1"><span class="id">#04</span><span class="t">글자 지원 판정 불일치</span><span class="m">엔진과 같은 순서로</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-5" aria-controls="case-5" aria-selected="false" tabindex="-1"><span class="id">#05</span><span class="t">ZIP 경로 구분자</span><span class="m">역슬래시 0</span></button></li>
+          <li><button class="log-tab" role="tab" id="tab-6" aria-controls="case-6" aria-selected="false" tabindex="-1"><span class="id">#06</span><span class="t">내 문제가 아닌 것 구분</span><span class="m">빈 프로젝트로 재현</span></button></li>
+        </ul>
+        <div class="panel" role="tabpanel" id="case-1" aria-labelledby="tab-1">
+          <h4>Fab 기술 심사 코드 플러그인 항목 Fail 2건</h4>
+          <div class="tags"><span class="chip hot">모듈 5개 Win64 통일</span><span class="chip">저작권 53/53</span><span class="chip">빌드 경고 0</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>심사 체크리스트의 코드 플러그인 항목 2개가 Fail이었습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>상품 페이지에는 Windows 전용으로 신고했는데, 에디터 모듈 4개의 허용 플랫폼은 Win64·Mac·Linux였고 런타임 모듈은 설정이 없었습니다. 저작권 표기에 연도도 빠져 있었습니다. 모듈 5개를 Win64로 통일하고, 소스 53개 파일의 표기를 같은 형식으로 맞췄습니다.</p></div>
+            <div class="r"><b>Result</b><p>두 엔진 버전에서 테스트 10/10, 실제 흐름 9/9, 플러그인 빌드 경고 0·오류 0을 확인하고 패키지를 교체했습니다.</p></div>
+          </div>
+          <div class="code"><div class="bar"><i></i><i></i><i></i>LocaFlow.uplugin</div><pre data-hl>{ "Name": "LocaFlowCore",      "Type": "Editor",  "PlatformAllowList": ["Win64"] },
+{ "Name": "LocaFlowTranslate", "Type": "Editor",  "PlatformAllowList": ["Win64"] },
+{ "Name": "LocaFlowQA",        "Type": "Editor",  "PlatformAllowList": ["Win64"] },
+{ "Name": "LocaFlowEditor",    "Type": "Editor",  "PlatformAllowList": ["Win64"] },
+{ "Name": "LocaFlowRuntime",   "Type": "Runtime", "PlatformAllowList": ["Win64"] }</pre></div>
+        </div>
+        <div class="panel" role="tabpanel" id="case-2" aria-labelledby="tab-2" hidden>
+          <h4>번역에 실패했는데 "번역됨"으로 표시되던 문제</h4>
+          <div class="tags"><span class="chip hot">실제 바뀐 항목만 집계</span><span class="chip">401 회귀 테스트</span><span class="chip">실서비스 403 확인</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>출시 전 코드 리뷰에서, 번역 작업이 끝나면 <strong>실패하거나 취소된 항목까지 전부 "번역됨"</strong>으로 바뀌는 것을 발견했습니다. 원문이 바뀐 오래된 번역이 최신처럼 보일 수 있었습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>작업 대상 전체가 아니라 실제로 바뀐 항목만 집계하고, 실패한 항목이 있으면 작업을 성공으로 끝내지 않게 했습니다.</p></div>
+            <div class="r"><b>Result</b><p>가짜 서버로 인증 실패(401)·토큰 손실 회귀 테스트를 추가했고, 실제 DeepL에 잘못된 키를 넣어 <strong>403으로 중단되고 기존 번역이 그대로 보존</strong>되는 것을 확인했습니다.</p></div>
+          </div>
+          <div class="code"><div class="bar"><i></i><i></i><i></i>LocaFlowTranslatorImpl.cpp</div><pre data-hl>const FString Msg = Progress.Failed == 0
+    ? FString::Printf(TEXT("Translated %d entries."), Progress.Done)
+    : FString::Printf(TEXT("Translated %d of %d entries; %d failed. Last error: %s"),
+        Progress.Done - Progress.Failed, Progress.Total, Progress.Failed, *Progress.LastError);
+// 부분 결과는 반영하되, 하나라도 실패하면 작업은 성공이 아니다
+Finish(Progress.Failed == 0, Msg);</pre></div>
+        </div>
+        <div class="panel" role="tabpanel" id="case-3" aria-labelledby="tab-3" hidden>
+          <h4>엔진이 다시 저장하면 사람 편집 표시가 사라지던 문제</h4>
+          <div class="tags"><span class="chip hot">별도 파일로 분리</span><span class="chip">엔진 소스 줄 번호 근거</span><span class="chip">Gather 후 유지</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>사람이 직접 고친 번역에 남긴 표시가, 엔진이 번역 파일을 다시 저장하면 사라졌습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>UE 5.8의 번역 파일 저장 로직이 메타데이터 중 Key만 읽고 다시 쓰기 때문이었습니다. 엔진 소스 줄 번호로 확인한 뒤, 표시를 엔진 파일이 아닌 <strong>별도 파일</strong>로 분리했습니다. 같은 작업에서 원문이 다른 CSV·PO 행을 건너뛰는 문제도 고쳤습니다.</p></div>
+            <div class="r"><b>Result</b><p>실제 텍스트 수집(Gather) 후에도 표시가 유지되는 것을 두 엔진 버전에서 확인했습니다.</p></div>
+          </div>
+          
+        </div>
+        <div class="panel" role="tabpanel" id="case-4" aria-labelledby="tab-4" hidden>
+          <h4>"지원됨"이라고 했는데 실제로는 안 그려지는 글자</h4>
+          <div class="tags"><span class="chip hot">언어별 폰트 우선순위</span><span class="chip">엔진과 같은 정렬</span><span class="chip">버전별 기대값</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>글자 지원 검사 결과와 실제 화면 렌더링이 달랐습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>모든 대체 폰트의 글자 범위를 합쳐서 판정했지만, 엔진은 <strong>언어별 우선순위</strong>로 폰트를 고릅니다. 또 UE 5.5는 하한값만 비교하는 정렬을 쓰는데 LocaFlow는 안정 정렬을 써서 같은 범위에서 다른 폰트가 선택됐습니다. 엔진과 같은 정렬을 쓰고, 선택된 폰트에 글자가 없으면 기본 → 대체 순서로 다시 찾게 했습니다.</p></div>
+            <div class="r"><b>Result</b><p>겹치는 범위 테스트는 5.5와 5.8의 기대값을 따로 두고, 이후 빌드에서 테스트 10/10을 유지했습니다.</p></div>
+          </div>
+          
+        </div>
+        <div class="panel" role="tabpanel" id="case-5" aria-labelledby="tab-5" hidden>
+          <h4>다른 OS에서 제대로 풀리지 않을 수 있는 배포 ZIP</h4>
+          <div class="tags"><span class="chip hot">항목 60개</span><span class="chip">역슬래시 0</span><span class="chip">POSIX unzip 재빌드</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>Windows PowerShell 5.1로 만든 배포 ZIP 안의 경로 구분자가 <code>\</code>였습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p><code>/</code> 경로로 다시 압축했습니다.</p></div>
+            <div class="r"><b>Result</b><p>일반 unzip으로 풀어 두 엔진 버전에서 다시 빌드해 성공을 확인했습니다. ZIP 해시와 공개 문서·ZIP 안 문서 일치까지 제출 전에 점검했습니다.</p></div>
+          </div>
+          
+        </div>
+        <div class="panel" role="tabpanel" id="case-6" aria-labelledby="tab-6" hidden>
+          <h4>엔진 쪽 현상을 플러그인 문제와 분리하기</h4>
+          <div class="tags"><span class="chip hot">빈 프로젝트 재현</span><span class="chip">원인 단정하지 않음</span></div>
+          <div class="pfr">
+            <div class="p"><b>Problem</b><p>UE 5.5.4 패키징 게임이 종료할 때 비정상 종료 코드가 나왔고, UE 5.8.3 시작 시 테스트 오류 로그 15줄이 출력됐습니다.</p></div>
+            <div class="f"><b>Cause · Fix</b><p>두 경우 모두 <strong>LocaFlow를 끈 빈 프로젝트에서도 똑같이 재현</strong>되는 것을 확인해 엔진 쪽 현상으로 분리했습니다.</p></div>
+            <div class="r"><b>Result</b><p>원인을 단정하지 않고 재현 조건과 함께 기록으로 남겨, 플러그인 문제와 섞이지 않게 했습니다.</p></div>
+          </div>
+          
+        </div>
+      </div>
+      <p class="status" data-reveal>미검증으로 남긴 것: OpenAI 실제 번역 성공 경로는 계정 크레딧 부족(429)으로 확인하지 못했습니다. 이때도 LocaFlow는 "0 of 5 entries; 5 failed"로 끝내고 기존 항목을 바꾸지 않았습니다. 심사 지적을 고친 패키지로 교체했고, 재심사 결과는 확인 전입니다. 소스 저장소는 비공개입니다.</p>
+    </div>
+  </section>
+
+  <section id="skills" aria-labelledby="sk-h" style="padding-top:0">
+    <div class="wrap">
+      <div class="station" data-reveal><span class="num">04</span><h2 id="sk-h">Stack</h2><span class="sub">이 프로젝트에서 실제로 쓴 것만 적었습니다</span></div>
+      <div class="skills" data-reveal>
+        <div><h3>Engine</h3><ul><li>Unreal Engine 5.5 · 5.8 C++<small>에디터·런타임 모듈 5개</small></li><li>Localization Dashboard<small>아카이브, Gather, 문화권</small></li><li>Slate · UMG<small>대시보드, 위젯 넘침 미리보기</small></li></ul></div>
+        <div><h3>Localization</h3><ul><li>ICU 문법<small>|plural, |gender, |hpp 한국어 조사</small></li><li>폰트<small>복합 폰트, 대체 폰트, 누락 글자</small></li><li>CSV · PO<small>내보내기·가져오기</small></li></ul></div>
+        <div><h3>API</h3><ul><li>DeepL · OpenAI 호환<small>태그 보호, 용어집, 재시도, 속도 제한</small></li><li>비용 관리<small>추정 비용, 작업당 상한</small></li><li>가짜 서버 테스트<small>mock 401, 토큰 손실</small></li></ul></div>
+        <div><h3>AI · 출시</h3><ul><li>Claude · Codex<small>구현과 리뷰</small></li><li>RunUAT BuildPlugin<small>경고 0·오류 0</small></li><li>Fab 제출<small>미디어 규격, 해시, 문서 일치 점검</small></li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="contact" aria-labelledby="ct-h">
+    <div class="wrap">
+      <p class="eyebrow">Contact</p>
+      <h2 class="big" id="ct-h" style="margin-top:14px">Let's<br>Localize <span>It</span></h2>
+      <p>실패를 성공으로 보이게 두지 않고, 엔진 동작은 소스로 확인하는 개발자 김현준입니다. 읽어 주셔서 감사합니다.</p>
+      <dl class="contact-rows">
+        <div><dt>Email</dt><dd id="mail">khj476611@naver.com</dd><button class="copy" type="button" data-copy="mail">복사</button></div>
+        <div><dt>GitHub</dt><dd><a href="https://github.com/hyunjunstar" target="_blank" rel="noopener">github.com/hyunjunstar</a></dd></div>
+      </dl>
+      <div class="others">
+        <a class="btn" href="/portfolio1/">CrossWalk · Slime Party <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn" href="/portfolio2/">팡팡 구슬 던전 <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn" href="/portfolio3/">ProjectGuard <span class="arr" aria-hidden="true">→</span></a>
+        <a class="btn" href="/portfolio4/">LocaFlow <span class="arr" aria-hidden="true">→</span></a>
+      </div>
+      <div class="end-stripes" aria-hidden="true"></div>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap">© 2026 Kim Hyunjun. All rights reserved. 이 페이지의 글·이미지·코드는 무단 복제·배포·사용을 금지합니다.</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+(function () {
+  /* block right-click / drag on images */
+  document.addEventListener('contextmenu', function (e) { if (e.target.closest('img, .shot')) e.preventDefault(); });
+  document.addEventListener('dragstart', function (e) { if (e.target.tagName === 'IMG') e.preventDefault(); });
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- tiny code highlighter ---------- */
+  var KW = /\b(if|else|for|return|const|bool|true|false|float|auto|this|void|nullptr|let|function|export|constexpr|int32)\b/;
+  document.querySelectorAll('pre[data-hl]').forEach(function (pre) {
+    var src = pre.textContent;
+    var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    var re = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|\b(\d+(?:\.\d+)?f?)\b|\b([A-Z][A-Za-z0-9_]*::)|\b([A-Za-z_][A-Za-z0-9_]*)(?=\s*\()|\b(if|else|for|return|const|bool|true|false|float|auto|this|void|nullptr|let|function|export|constexpr|int32)\b/g;
+    var out = '', last = 0, m;
+    while ((m = re.exec(src))) {
+      out += esc(src.slice(last, m.index));
+      var cls = m[1] ? 'c' : m[2] ? 's' : m[3] ? 'n' : m[4] ? 't' : m[5] ? 'f' : 'k';
+      if (m[5] && KW.test(m[5])) cls = 'k';
+      out += '<span class="tk-' + cls + '">' + esc(m[0]) + '</span>';
+      last = re.lastIndex;
+    }
+    out += esc(src.slice(last));
+    pre.innerHTML = out.split('\n').map(function (l) { return '<span class="ln">' + (l || ' ') + '</span>'; }).join('');
+  });
+
+  /* ---------- tabs ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.log-tab'));
+  function select(tab, focus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    if (focus) tab.focus();
+    var panel = document.getElementById(tab.getAttribute('aria-controls'));
+    if (window.gsap && !reduce) {
+      gsap.fromTo(panel.querySelectorAll('h4, .tags, .pfr > div, .code, .shot-inline'),
+        { y: 14, opacity: 0.25 }, { y: 0, opacity: 1, duration: .45, stagger: .05, ease: 'power2.out', overwrite: true });
+    }
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { select(t); });
+    t.addEventListener('keydown', function (e) {
+      var k = e.key, n = null;
+      if (k === 'ArrowDown' || k === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+      if (k === 'ArrowUp' || k === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+      if (k === 'Home') n = tabs[0];
+      if (k === 'End') n = tabs[tabs.length - 1];
+      if (n) { e.preventDefault(); select(n, true); }
+    });
+  });
+
+  /* ---------- copy buttons ---------- */
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var el = document.getElementById(b.getAttribute('data-copy'));
+      var text = el.textContent.trim();
+      var reset = function () { b.textContent = '복사'; };
+      var done = function () { b.textContent = '복사됨'; setTimeout(reset, 1600); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(el); var s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = '선택됨'; setTimeout(reset, 1600); };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+    });
+  });
+
+  /* ---------- progress (lane line) ---------- */
+  var lane = document.querySelector('.lane-progress'), bar = document.querySelector('.top-progress');
+  function onScroll() {
+    var h = document.documentElement.scrollHeight - innerHeight;
+    var p = h > 0 ? Math.min(1, Math.max(0, scrollY / h)) : 0;
+    lane.style.setProperty('--p', p.toFixed(4));
+    bar.style.setProperty('--p', p.toFixed(4));
+  }
+  addEventListener('scroll', onScroll, { passive: true }); addEventListener('resize', onScroll); onScroll();
+
+  /* ---------- nav current section ---------- */
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a.link'));
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        links.forEach(function (a) { a.setAttribute('aria-current', a.getAttribute('href') === '#' + en.target.id ? 'true' : 'false'); });
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    links.forEach(function (a) { var s = document.getElementById(a.getAttribute('href').slice(1)); if (s) io.observe(s); });
+  }
+
+  /* ---------- motion ---------- */
+  if (!window.gsap || reduce) return;
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.timeline({ defaults: { ease: 'power3.out' } })
+    .from('.hero h1 .line > span', { yPercent: 110, duration: .9, stagger: .1 }, .1)
+    .from('[data-hero]', { y: 18, opacity: 0.2, duration: .7, stagger: .08 }, .3);
+  gsap.utils.toArray('[data-reveal]').forEach(function (el) {
+    gsap.from(el, { y: 36, opacity: 0.25, duration: .9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%', once: true } });
+  });
+  gsap.utils.toArray('.station').forEach(function (el) {
+    gsap.fromTo(el, { borderTopColor: 'rgba(236,235,230,0)' }, { borderTopColor: 'rgba(236,235,230,1)', duration: .8, scrollTrigger: { trigger: el, start: 'top 90%', once: true } });
+  });
+  gsap.utils.toArray('[data-count]').forEach(function (el) {
+    var to = parseFloat(el.getAttribute('data-count')), from = parseFloat(el.getAttribute('data-from'));
+    var suffix = el.textContent.replace(/[0-9.]/g, '');
+    var o = { v: from };
+    gsap.to(o, { v: to, duration: 1.4, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 90%', once: true },
+      onStart: function () { el.textContent = from + suffix; },
+      onUpdate: function () { el.textContent = Math.round(o.v) + suffix; },
+      onComplete: function () { el.textContent = to + suffix; } });
+  });
+  var flow = document.querySelector('[data-flow]');
+  if (flow) {
+    var nodes = flow.querySelectorAll('.node'), packet = flow.querySelector('.packet'), pipe = flow.querySelector('.pipe i');
+    var tl = gsap.timeline({ repeat: -1, repeatDelay: .8, paused: true });
+    tl.set(pipe, { '--f': 0 });
+    nodes.forEach(function (n, i) {
+      var x = function () { return n.offsetLeft + n.offsetWidth / 2 - 8; };
+      tl.to(packet, { opacity: 1, left: x, duration: i === 0 ? .01 : .7, ease: 'power2.inOut' })
+        .to(pipe, { '--f': (i + 1) / nodes.length, duration: i === 0 ? .3 : .7, ease: 'power2.inOut' }, '<')
+        .add(function () { n.classList.add('is-on'); })
+        .to({}, { duration: .55 });
+    });
+    tl.to(packet, { opacity: 0, duration: .3 }).add(function () { nodes.forEach(function (n) { n.classList.remove('is-on'); }); }).to({}, { duration: .2 });
+    ScrollTrigger.create({ trigger: flow, start: 'top 85%', end: 'bottom 10%', onToggle: function (s) { s.isActive ? tl.play() : tl.pause(); } });
+  }
+  gsap.from('.end-stripes', { scaleX: 0, duration: 1.4, ease: 'power3.inOut', scrollTrigger: { trigger: '.end-stripes', start: 'top 95%', once: true } });
+})();
+
+</script>
+</body>
+</html>
