@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://hyunjunstar.github.io/portfolio3/assets/representative.png">
 <style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head>
-<body>
+<body class="theme-guard">
 <title>ProjectGuard: Asset Checker · 김현준 포트폴리오</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="외주 납품 에셋을 검사하는 Unreal Engine 에디터 플러그인 ProjectGuard의 기획, 개발, Fab 심사 대응과 트러블슈팅 기록.">
@@ -466,6 +466,7 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
 </style>
 <style>
 /* portfolio2-4 additions */
+.hero-art { position: relative; display: grid; place-items: center; align-self: center; }
 .hero-shot { margin: 0; align-self: center; justify-self: center; width: 100%; }
 .hero-shot.phone { max-width: 340px; }
 .hero-shot img { transform: none; }
@@ -489,6 +490,79 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
 .status { margin-top: 18px; font-size: var(--step--1); color: var(--paint-faint); border-left: 3px solid var(--asphalt-3); padding-left: 12px; }
 @media (max-width: 760px) { .rules, .ba { grid-template-columns: 1fr; } .trio { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+
+.theme-guard {
+  --asphalt: #0f1317; --asphalt-2: #151b21; --asphalt-3: #26313b;
+  --paint: #e7eef4; --paint-dim: #9babb8; --paint-faint: #5d6d7b;
+  --lane: #2ee6c5; --lane-ink: #032019; --stop: #ff5c6c; --go: #2ee6c5;
+  --f-display: "Space Grotesk", "IBM Plex Sans KR", sans-serif;
+  --radius: 3px;
+}
+body.theme-guard { background: #0f1317; }
+/* blueprint grid instead of asphalt grain */
+body.theme-guard::before { opacity: 1; background-image:
+  linear-gradient(rgba(46, 230, 197, .045) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(46, 230, 197, .045) 1px, transparent 1px),
+  linear-gradient(rgba(46, 230, 197, .02) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(46, 230, 197, .02) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; }
+.theme-guard .hero h1, .theme-guard .station h2, .theme-guard .proj-title { font-family: "Space Grotesk", sans-serif; letter-spacing: -.02em; }
+.theme-guard .hero h1 { font-weight: 700; text-transform: none; }
+.theme-guard .thesis em { color: var(--lane); font-style: normal; }
+/* ruler instead of the lane line */
+.theme-guard .lane-progress { width: 2px; background: var(--asphalt-3); }
+.theme-guard .lane-progress::after { content: ""; position: absolute; left: -5px; width: 12px; top: 0; bottom: 0;
+  background: linear-gradient(var(--asphalt-3), var(--asphalt-3)) left top / 6px 1px repeat-y; background-size: 6px 24px; }
+.theme-guard .lane-progress i { background: var(--lane); box-shadow: 0 0 10px rgba(46,230,197,.6); }
+.theme-guard .nav { background: rgba(15, 19, 23, .86); }
+.theme-guard .brand-mark span { background: var(--paint-dim); }
+.theme-guard .brand-mark span:first-child { background: var(--lane); }
+.theme-guard .station { border-top: 1px solid var(--asphalt-3); }
+.theme-guard .station .num { background: transparent; color: var(--lane); font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 1rem; padding: 0; }
+.theme-guard .station .num::before { content: "["; color: var(--paint-faint); }
+.theme-guard .station .num::after { content: "]"; color: var(--paint-faint); }
+.theme-guard .station h2 { text-transform: none; }
+.theme-guard .eyebrow { font-family: "JetBrains Mono", monospace; letter-spacing: .08em; font-size: .78rem; }
+.theme-guard .eyebrow::before { content: "> "; color: var(--paint-faint); }
+.theme-guard .btn { border-radius: 3px; font-family: "Space Grotesk", sans-serif; letter-spacing: .04em; }
+.theme-guard .btn.primary:hover { background: #5cf0d6; }
+.theme-guard .metric { border-left: 3px solid var(--lane); background: var(--asphalt-2); }
+.theme-guard .metric .after { font-family: "Space Grotesk", sans-serif; }
+.theme-guard .metric .src { font-family: "JetBrains Mono", monospace; }
+.theme-guard .metric .src::before { content: "● "; color: var(--lane); }
+.theme-guard .opt.no { position: relative; }
+.theme-guard .opt.no::after { content: "REJECTED"; position: absolute; right: 12px; top: 12px; font-family: "JetBrains Mono", monospace; font-size: .62rem; letter-spacing: .1em; color: var(--stop); border: 1px solid var(--stop); padding: 1px 5px; transform: rotate(-4deg); }
+.theme-guard .opt.yes { position: relative; }
+.theme-guard .opt.yes::after { content: "SELECTED"; position: absolute; right: 12px; top: 12px; font-family: "JetBrains Mono", monospace; font-size: .62rem; letter-spacing: .1em; color: var(--lane); border: 1px solid var(--lane); padding: 1px 5px; }
+.theme-guard .log-tab:hover { background: #1a2229; }
+.theme-guard .log-tab[aria-selected="true"] { background: #1c262e; }
+.theme-guard .panel .tags .chip.hot::before { content: "PASS"; font-family: "JetBrains Mono", monospace; font-size: .62rem; background: var(--lane); color: var(--lane-ink); padding: 0 4px; border-radius: 2px; margin-right: 2px; }
+.theme-guard .pfr .p b { color: var(--stop); }
+.theme-guard .code { background: #0b0e11; }
+.theme-guard .flow .node { background: var(--asphalt-2); }
+.theme-guard .flow .node .k::before { content: "◇ "; color: var(--lane); }
+.theme-guard .contact .big span { color: var(--lane); }
+.theme-guard .end-stripes { background: repeating-linear-gradient(90deg, var(--lane) 0 2px, transparent 2px 14px) !important; height: 14px; opacity: .6; }
+/* hero: editor panel framed by shield-style corner brackets, with a scan line */
+.theme-guard .hero-art { padding: 26px; }
+.theme-guard .hero-art::before, .theme-guard .hero-art::after { content: ""; position: absolute; width: 42px; height: 42px; border: 3px solid var(--lane); pointer-events: none; }
+.theme-guard .hero-art::before { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.theme-guard .hero-art::after { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+.theme-guard .hero-shot { position: relative; overflow: hidden; box-shadow: 0 24px 50px rgba(0,0,0,.5); }
+.theme-guard .hero-shot::after { content: ""; position: absolute; left: 0; right: 0; height: 30%; top: -30%;
+  background: linear-gradient(180deg, transparent, rgba(46,230,197,.18) 85%, rgba(46,230,197,.7) 100%); animation: guard-scan 3.6s linear infinite; }
+@keyframes guard-scan { to { top: 100%; } }
+.verdict { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; width: 100%; font-family: "JetBrains Mono", monospace; font-size: .74rem; }
+.verdict span { padding: 4px 9px; border: 1px solid var(--asphalt-3); background: var(--asphalt-2); color: var(--paint-dim); }
+.verdict .ok { color: var(--lane); border-color: rgba(46,230,197,.45); }
+.verdict .bad { color: var(--stop); border-color: rgba(255,92,108,.45); }
+.verdict .na { color: #f5c76b; border-color: rgba(245,199,107,.45); }
+@media (prefers-reduced-motion: reduce) { .theme-guard .hero-shot::after { animation: none; display: none; } }
+
+</style>
+
 
 <div class="lane-progress" aria-hidden="true"><i></i></div>
 <div class="top-progress" aria-hidden="true"></div>
@@ -527,7 +601,7 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
           <div><b>Pass</b><span>Fab 빌드 재심사</span></div>
         </div>
       </div>
-      <figure class="shot hero-shot" data-hero><img src="assets/representative.png" alt="ProjectGuard 검사 창: 기준, 납품 폴더, 이전 기록, 출력, 마지막 결과" loading="lazy"></figure>
+      <div class="hero-art" data-hero><figure class="shot hero-shot"><img src="assets/representative.png" alt="ProjectGuard 검사 창: 기준, 납품 폴더, 이전 기록, 출력, 마지막 결과" loading="lazy"></figure><div class="verdict"><span class="ok">PASSED 14</span><span class="bad">NOT MET 16</span><span class="na">COULD NOT CHECK 1</span><span>RESOLVED 3 · STILL NOT MET 16</span></div></div>
     </div>
   </section>
 

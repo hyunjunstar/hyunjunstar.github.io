@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://hyunjunstar.github.io/portfolio4/assets/02_korean_particle_fixed.png">
 <style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head>
-<body>
+<body class="theme-loca">
 <title>LocaFlow · 김현준 포트폴리오</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Unreal Engine 현지화 QA·번역 플러그인 LocaFlow의 기획, 개발, Fab 심사 대응과 트러블슈팅 기록.">
@@ -466,6 +466,7 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
 </style>
 <style>
 /* portfolio2-4 additions */
+.hero-art { position: relative; display: grid; place-items: center; align-self: center; }
 .hero-shot { margin: 0; align-self: center; justify-self: center; width: 100%; }
 .hero-shot.phone { max-width: 340px; }
 .hero-shot img { transform: none; }
@@ -489,6 +490,71 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
 .status { margin-top: 18px; font-size: var(--step--1); color: var(--paint-faint); border-left: 3px solid var(--asphalt-3); padding-left: 12px; }
 @media (max-width: 760px) { .rules, .ba { grid-template-columns: 1fr; } .trio { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Sans+JP:wght@700&family=Noto+Sans+SC:wght@700&display=swap">
+<style>
+
+.theme-loca {
+  --asphalt: #0a1120; --asphalt-2: #101a2e; --asphalt-3: #1f2d4a;
+  --paint: #edf3ff; --paint-dim: #a3b4d2; --paint-faint: #63769c;
+  --lane: #3d9bff; --lane-ink: #031127; --stop: #ff6b6b; --go: #5fe0a5;
+  --cyan: #45e0ff;
+  --f-display: "Sora", "Noto Sans KR", sans-serif;
+  --f-body: "Noto Sans KR", "IBM Plex Sans KR", sans-serif;
+  --radius: 10px;
+}
+body.theme-loca { background: radial-gradient(80% 50% at 80% -10%, rgba(61,155,255,.22), transparent 70%), #0a1120; background-attachment: fixed; }
+body.theme-loca::before { opacity: .35; }
+.glyphs { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.glyphs span { position: absolute; font-weight: 700; color: rgba(61,155,255,.06); line-height: 1; user-select: none; }
+.glyphs .g1 { font-family: "Noto Sans KR"; font-size: 38vw; right: -6vw; top: 4vh; }
+.glyphs .g2 { font-family: "Noto Sans JP"; font-size: 24vw; left: -4vw; top: 70vh; }
+.glyphs .g3 { font-family: "Noto Sans SC"; font-size: 22vw; right: 8vw; top: 160vh; }
+.glyphs .g4 { font-family: "Sora"; font-size: 26vw; left: 4vw; top: 240vh; }
+.theme-loca .hero h1, .theme-loca .station h2, .theme-loca .proj-title { font-family: "Sora", sans-serif; text-transform: none; letter-spacing: -.03em; }
+.theme-loca .hero h1 { font-weight: 800; }
+.theme-loca .hero h1 .accent { background: linear-gradient(90deg, var(--lane), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.theme-loca .thesis em { color: var(--cyan); font-style: normal; }
+/* progress bar instead of the lane line */
+.theme-loca .lane-progress { width: 6px; border-radius: 3px; background: var(--asphalt-3); top: 80px; bottom: 24px; }
+.theme-loca .lane-progress i { border-radius: 3px; background: linear-gradient(180deg, var(--lane), var(--cyan)); }
+.theme-loca .top-progress { background: linear-gradient(90deg, var(--lane), var(--cyan)); }
+.theme-loca .nav { background: rgba(10, 17, 32, .82); }
+.theme-loca .nav .brand, .theme-loca .nav ul a { white-space: nowrap; }
+@media (max-width: 480px) { .theme-loca .nav .brand { font-size: .95rem; } .theme-loca .nav ul { gap: 10px; } .theme-loca .nav ul a { font-size: .8rem; } }
+.theme-loca .brand-mark span:first-child { background: var(--lane); }
+.theme-loca .station { border-top: 1px solid var(--asphalt-3); }
+.theme-loca .station .num { background: var(--asphalt-2); color: var(--lane); border: 1px solid var(--asphalt-3); border-radius: 6px; font-family: "JetBrains Mono", monospace; font-size: .9rem; padding: 2px 8px; }
+.theme-loca .station .num::after { content: " · ko"; color: var(--paint-faint); }
+.theme-loca .btn { border-radius: 8px; }
+.theme-loca .btn.primary { background: linear-gradient(135deg, var(--lane), #2a7de0); border-color: transparent; color: #fff; }
+.theme-loca .btn.primary:hover { background: linear-gradient(135deg, #5aaeff, var(--lane)); }
+.theme-loca .metric { background: var(--asphalt-2); position: relative; overflow: hidden; }
+.theme-loca .metric::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: linear-gradient(90deg, var(--lane), var(--cyan)); opacity: .7; }
+.theme-loca .metric .after { background: linear-gradient(135deg, var(--lane), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; font-family: "Sora", sans-serif; }
+.theme-loca .flow .pipe, .theme-loca .flow .pipe i { border-radius: 3px; }
+.theme-loca .flow .pipe { background: var(--asphalt-3); }
+.theme-loca .flow .pipe i { background: linear-gradient(90deg, var(--lane), var(--cyan)); }
+.theme-loca .flow .packet { border-radius: 4px; background: var(--cyan); }
+.theme-loca .log-tab:hover { background: #142139; }
+.theme-loca .log-tab[aria-selected="true"] { background: #172744; }
+.theme-loca .code { background: #070d19; }
+.theme-loca .rules > div { border-left: 3px solid var(--lane); }
+.theme-loca .contact .big span { color: var(--cyan); }
+.theme-loca .end-stripes { background: linear-gradient(90deg, var(--lane) 0 29%, var(--asphalt-3) 29% 30%, var(--cyan) 30% 72%, var(--asphalt-3) 72% 73%, #5fe0a5 73% 100%) !important; height: 8px; border-radius: 4px; }
+/* hero: culture completion card above the dashboard screenshot */
+.theme-loca .hero-shot { border-radius: 12px; box-shadow: 0 26px 50px rgba(0,0,0,.45); }
+.cultures { width: 100%; margin-bottom: 14px; padding: 14px 16px; border: 1px solid var(--asphalt-3); border-radius: 12px; background: rgba(16, 26, 46, .85); font-family: "JetBrains Mono", monospace; font-size: .78rem; }
+.cultures .row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 56px; align-items: center; gap: 10px; padding: 3px 0; color: var(--paint-dim); }
+.cultures .bar { height: 8px; border-radius: 4px; background: var(--asphalt-3); overflow: hidden; }
+.cultures .bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--lane), var(--cyan)); transform-origin: left; animation: loca-fill 1.6s cubic-bezier(.2,.8,.2,1) both; }
+.cultures .row:nth-child(2) i { animation-delay: .1s; } .cultures .row:nth-child(3) i { animation-delay: .2s; }
+.cultures .row:nth-child(4) i { animation-delay: .3s; } .cultures .row:nth-child(5) i { animation-delay: .4s; }
+.cultures b { color: var(--paint); font-weight: 500; text-align: right; }
+@keyframes loca-fill { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .cultures .bar i { animation: none; } }
+
+</style>
+<div class="glyphs" aria-hidden="true"><span class="g1">가</span><span class="g2">あ</span><span class="g3">中</span><span class="g4">Ö</span></div>
 
 <div class="lane-progress" aria-hidden="true"><i></i></div>
 <div class="top-progress" aria-hidden="true"></div>
@@ -527,7 +593,13 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
           <div><b>DeepL</b><span>OpenAI 호환 번역</span></div>
         </div>
       </div>
-      <figure class="shot hero-shot" data-hero><img src="assets/02_korean_particle_fixed.png" alt="LocaFlow 대시보드: 언어별 완성도, 번역 표, QA 이슈 목록" loading="lazy"></figure>
+      <div class="hero-art" data-hero><div class="cultures" aria-label="문화권별 번역 완성도 예시">
+            <div class="row"><span>de</span><div class="bar"><i style="width:29%"></i></div><b>29%</b></div>
+            <div class="row"><span>en</span><div class="bar"><i style="width:100%"></i></div><b>100%</b></div>
+            <div class="row"><span>ja</span><div class="bar"><i style="width:100%"></i></div><b>100%</b></div>
+            <div class="row"><span>ko</span><div class="bar"><i style="width:86%"></i></div><b>86%</b></div>
+            <div class="row"><span>zh-Hans</span><div class="bar"><i style="width:14%"></i></div><b>14%</b></div>
+          </div><figure class="shot hero-shot"><img src="assets/02_korean_particle_fixed.png" alt="LocaFlow 대시보드: 언어별 완성도, 번역 표, QA 이슈 목록" loading="lazy"></figure></div>
     </div>
   </section>
 

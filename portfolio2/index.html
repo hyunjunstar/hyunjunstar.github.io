@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://hyunjunstar.github.io/portfolio2/assets/battle.jpg">
 <style>html{color-scheme:dark}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head>
-<body>
+<body class="theme-marble">
 <title>팡팡 구슬 던전 · 김현준 포트폴리오</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="AI 도구로 1인 기획·개발·배포한 모바일 웹 게임 팡팡 구슬 던전의 기획, 개발, 트러블슈팅 기록.">
@@ -466,6 +466,7 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
 </style>
 <style>
 /* portfolio2-4 additions */
+.hero-art { position: relative; display: grid; place-items: center; align-self: center; }
 .hero-shot { margin: 0; align-self: center; justify-self: center; width: 100%; }
 .hero-shot.phone { max-width: 340px; }
 .hero-shot img { transform: none; }
@@ -489,6 +490,85 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
 .status { margin-top: 18px; font-size: var(--step--1); color: var(--paint-faint); border-left: 3px solid var(--asphalt-3); padding-left: 12px; }
 @media (max-width: 760px) { .rules, .ba { grid-template-columns: 1fr; } .trio { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Jua&family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+
+.theme-marble {
+  --asphalt: #1b1233; --asphalt-2: #261a44; --asphalt-3: #3d2d63;
+  --paint: #fdf4ff; --paint-dim: #cdbbe6; --paint-faint: #9381b5;
+  --lane: #ff7eb0; --lane-ink: #3a0d24; --stop: #ff8f86; --go: #86e8c6;
+  --rose: #ff7eb0; --lilac: #b79cff; --pearl: #fff4fb;
+  --f-display: "Fredoka", "Jua", "Noto Sans KR", sans-serif;
+  --f-body: "Noto Sans KR", "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
+  --radius: 20px;
+}
+.theme-marble body, body.theme-marble { background:
+  radial-gradient(60% 45% at 85% 0%, rgba(255, 126, 176, .22), transparent 70%),
+  radial-gradient(55% 40% at 0% 35%, rgba(183, 156, 255, .18), transparent 70%),
+  radial-gradient(70% 50% at 100% 100%, rgba(120, 90, 210, .25), transparent 70%),
+  #1b1233; background-attachment: fixed; }
+/* sparkles instead of asphalt grain */
+body.theme-marble::before { opacity: 1; background-image:
+  radial-gradient(1.5px 1.5px at 12% 18%, rgba(255,255,255,.7), transparent 60%),
+  radial-gradient(1px 1px at 72% 12%, rgba(255,220,240,.8), transparent 60%),
+  radial-gradient(1.5px 1.5px at 38% 62%, rgba(255,255,255,.5), transparent 60%),
+  radial-gradient(1px 1px at 88% 48%, rgba(230,210,255,.8), transparent 60%),
+  radial-gradient(1.2px 1.2px at 22% 84%, rgba(255,255,255,.6), transparent 60%),
+  radial-gradient(1px 1px at 58% 92%, rgba(255,220,240,.7), transparent 60%);
+  background-size: 420px 420px; }
+.theme-marble h1, .theme-marble .station h2, .theme-marble .proj-title { font-family: "Jua", "Fredoka", sans-serif; text-transform: none; letter-spacing: 0; }
+.theme-marble .hero h1 { font-family: "Fredoka", "Jua", sans-serif; font-weight: 700; }
+.theme-marble .hero h1 .accent { background: linear-gradient(90deg, var(--rose), var(--lilac)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.theme-marble .thesis em { color: var(--rose); font-style: normal; }
+/* marble trail instead of the lane line */
+.theme-marble .lane-progress { width: 10px; left: calc(env(safe-area-inset-left, 0px) + 25px);
+  background: radial-gradient(circle at 50% 50%, var(--asphalt-3) 3px, transparent 3.5px) center top / 10px 26px repeat-y; }
+.theme-marble .lane-progress i { background: radial-gradient(circle at 40% 40%, #fff 0 1.5px, var(--rose) 2px 4px, transparent 4.5px) center top / 10px 26px repeat-y; }
+.theme-marble .top-progress { background: linear-gradient(90deg, var(--rose), var(--lilac)); }
+.theme-marble .nav { background: color-mix(in srgb, #1b1233 78%, transparent); border-bottom-color: rgba(255,126,176,.18); }
+.theme-marble .brand-mark span { border-radius: 99px; }
+.theme-marble .brand-mark span:first-child { background: var(--rose); }
+.theme-marble .station { border-top: 0; padding-top: 22px; position: relative; }
+.theme-marble .station::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 8px;
+  background: radial-gradient(circle, var(--rose) 0 3px, transparent 3.5px) left center / 18px 8px repeat-x; opacity: .7; }
+.theme-marble .station .num { border-radius: 999px; background: linear-gradient(135deg, var(--rose), var(--lilac)); color: #fff; padding: 2px 14px; }
+.theme-marble .btn { border-radius: 999px; }
+.theme-marble .btn.primary { background: linear-gradient(135deg, #ff8fbb, #ff6aa3); border-color: transparent; color: #fff; box-shadow: 0 6px 18px rgba(255, 106, 163, .35), inset 0 2px 0 rgba(255,255,255,.35); }
+.theme-marble .btn.primary:hover { background: linear-gradient(135deg, #ffa3c8, #ff7eb0); }
+.theme-marble .chip { border-radius: 999px; }
+.theme-marble .metric, .theme-marble .opt, .theme-marble .rules > div, .theme-marble .holders div, .theme-marble .facts > div,
+.theme-marble .log, .theme-marble .flow .node, .theme-marble .shot, .theme-marble .code { border-radius: var(--radius); }
+.theme-marble .metric { background: linear-gradient(180deg, rgba(255,244,251,.06), rgba(255,244,251,.02)); border-color: rgba(255,126,176,.18); }
+.theme-marble .metric .after { background: linear-gradient(135deg, var(--rose), var(--lilac)); -webkit-background-clip: text; background-clip: text; color: transparent; font-family: "Fredoka", sans-serif; }
+.theme-marble .flow { gap: 10px; }
+.theme-marble .flow .node + .node { border-left: 1px solid var(--asphalt-3); }
+.theme-marble .flow .pipe { background: radial-gradient(circle, var(--asphalt-3) 0 3px, transparent 3.5px) left center / 16px 6px repeat-x; height: 6px; }
+.theme-marble .flow .pipe i { background: radial-gradient(circle, var(--rose) 0 3px, transparent 3.5px) left center / 16px 6px repeat-x; }
+.theme-marble .flow .packet { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0 2px, #ffb3d1 3px, #ff6aa3 70%); }
+.theme-marble .log-tab:hover { background: #2d2050; }
+.theme-marble .log-tab[aria-selected="true"] { background: #33245a; }
+.theme-marble .code { background: #150d29; }
+.theme-marble .opt.proof { background: linear-gradient(135deg, var(--rose), var(--lilac)); color: #fff; border-color: transparent; }
+.theme-marble .opt.proof .letter, .theme-marble .opt.proof p, .theme-marble .opt.proof h4 { color: #fff; }
+.theme-marble .contact .big span { color: var(--rose); }
+.theme-marble .end-stripes { background: radial-gradient(circle at 40% 40%, #fff 0 2px, var(--rose) 3px 9px, transparent 9.5px) left center / 26px 22px repeat-x !important; height: 22px; }
+/* floating marbles around the phone */
+.theme-marble .hero-art { padding: 28px 40px; }
+.theme-marble .hero-shot.phone { border-radius: 34px; border: 6px solid #2f2350; box-shadow: 0 30px 60px rgba(10, 4, 30, .55), 0 0 0 1px rgba(255,126,176,.25); }
+.marble { position: absolute; border-radius: 50%; z-index: 2; pointer-events: none;
+  background: radial-gradient(circle at 32% 28%, #fff 0 8%, var(--c1) 22%, var(--c2) 72%, var(--c3) 100%);
+  box-shadow: 0 10px 22px rgba(10, 4, 30, .45); animation: marble-bob 4.5s ease-in-out infinite; }
+.marble.m1 { --c1: #ffc2da; --c2: #ff6aa3; --c3: #b8336e; width: 64px; height: 64px; left: 0; top: 18%; }
+.marble.m2 { --c1: #e2d6ff; --c2: #9b7bff; --c3: #5a3cc4; width: 44px; height: 44px; right: 6px; top: 8%; animation-delay: -1.4s; }
+.marble.m3 { --c1: #fff3c2; --c2: #ffcc4d; --c3: #c8861a; width: 36px; height: 36px; right: 0; bottom: 22%; animation-delay: -2.6s; }
+.marble.m4 { --c1: #c8fff0; --c2: #4fd6b4; --c3: #1d8a73; width: 28px; height: 28px; left: 18px; bottom: 12%; animation-delay: -3.3s; }
+.marble.m5 { --c1: #2b3a86; --c2: #1b2560; --c3: #0d1238; width: 52px; height: 52px; left: 42%; bottom: -2px; animation-delay: -0.7s; }
+@keyframes marble-bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .marble { animation: none; } }
+@media (max-width: 899px) { .theme-marble .hero-art { padding: 20px 24px; } .marble.m1 { width: 46px; height: 46px; } }
+
+</style>
+
 
 <div class="lane-progress" aria-hidden="true"><i></i></div>
 <div class="top-progress" aria-hidden="true"></div>
@@ -527,7 +607,7 @@ img { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; p
           <div><b>7종</b><span>캐릭터 · 필살기</span></div>
         </div>
       </div>
-      <figure class="shot hero-shot phone" data-hero><img src="assets/home.jpg" alt="팡팡 구슬 던전 로비 화면: 구슬 요정 캐릭터와 모험 시작 버튼" loading="lazy"></figure>
+      <div class="hero-art" data-hero><span class="marble m1"></span><span class="marble m2"></span><span class="marble m3"></span><span class="marble m4"></span><span class="marble m5"></span><figure class="shot hero-shot phone"><img src="assets/home.jpg" alt="팡팡 구슬 던전 로비 화면: 구슬 요정 캐릭터와 모험 시작 버튼" loading="lazy"></figure></div>
     </div>
   </section>
 
